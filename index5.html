@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nuzlocke Soul Link Tracker</title>
+    <!-- Tailwind CSS für schnelles, sauberes Design -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-gray-100 min-h-screen text-gray-800">
+
+    <!-- LOGIN CONTAINER -->
+    <div id="login-screen" class="flex items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+            <h2 class="text-2xl font-bold mb-6 text-center text-blue-900">Soul Link Login</h2>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">E-Mail</label>
+                    <input type="email" id="email" required class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Passwort</label>
+                    <input type="password" id="password" required class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                </div>
+                <button type="submit" class="w-full bg-blue-900 text-white p-2 rounded-lg font-semibold hover:bg-blue-800 transition">Einloggen</button>
+                <p id="login-error" class="text-red-500 text-sm text-center hidden">Falsche Anmeldedaten!</p>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="app-screen" class="hidden">
+        <!-- Header -->
+        <header class="bg-blue-950 text-white shadow-md">
+            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <span class="text-xl font-bold">🛡️ SOUL LINK TRACKER</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center space-x-2">
+                        <span class="text-sm text-gray-300">Run:</span>
+                        <select id="run-select" class="bg-blue-900 text-white text-sm rounded px-2 py-1 border border-blue-700 outline-none"></select>
+                        <button onclick="createNewRun()" class="bg-green-600 hover:bg-green-500 text-xs px-2 py-1.5 rounded font-bold transition">+ Neuer Run</button>
+                        <button id="finish-run-btn" onclick="openFinishRunModal()" class="bg-red-800 hover:bg-red-700 text-xs px-2 py-1.5 rounded font-bold transition text-white">
+                            🏁 Run beenden
+                        </button>
+                    </div>
+                    <div class="border-l border-blue-800 h-6"></div>
+                    <button onclick="logout()" class="text-xs bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded font-bold transition">Logout [x]</button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Navigation Tabs -->
+        <nav class="bg-white border-b border-gray-200 shadow-sm">
+            <div class="max-w-7xl mx-auto flex space-x-8 px-4">
+                <button id="tab-btn-tracker" onclick="switchTab('tracker')" class="py-3 font-semibold text-blue-600 border-b-2 border-blue-600">
+                    🎮 Aktueller Run
+                </button>
+                <button id="tab-btn-history" onclick="switchTab('history')" class="py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent">
+                    📊 Run-Historie
+                </button>
+            </div>
+        </nav>
+
+        <!-- Status-Banner für beendete Runs -->
+        <div id="finished-run-banner" class="hidden bg-amber-50 border-b border-amber-200 p-4 text-center">
+            <div class="max-w-7xl mx-auto flex items-center justify-center space-x-3">
+                <span id="banner-outcome-badge" class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase"></span>
+                <span id="banner-note" class="text-sm font-medium text-gray-700 italic"></span>
+                <button onclick="reopenRun()" class="text-xs text-gray-500 underline hover:text-gray-800 ml-4">Bearbeitung wieder aktivieren</button>
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <main class="max-w-7xl mx-auto px-4 py-6">
+
+            <!-- ANSICHT 1: AKTUELLER RUN (Dashboard) -->
+            <div id="view-tracker">
+                <!-- Death Counter Dashboard Leiste -->
+                <div id="death-counter-bar" class="mb-4">
+                    <!-- Wird dynamisch gefüllt -->
+                </div>
+
+                <!-- Orden-Leiste (Feuerrot/Blattgrün) -->
+                <div id="badges-bar" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Erreichte Orden</span>
+                        <span id="badge-count" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">0 / 8</span>
+                    </div>
+                    <div id="badges-container" class="grid grid-cols-4 sm:grid-cols-8 gap-2">
+                        <!-- Wird dynamisch per JS befüllt -->
+                    </div>
+                </div>
+
+                <!-- Steuerung für Routen -->
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-gray-700">Routen-Übersicht</h2>
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm">
+                            <input type="checkbox" id="show-all-checkbox" onchange="loadRoutesAndCatches()" class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
+                            <span>Alle Routen anzeigen</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Routen Liste -->
+                <div id="routes-container" class="space-y-4">
+                    <!-- Wird per JavaScript befüllt -->
+                </div>
+            </div>
+
+            <!-- ANSICHT 2: RUN-HISTORIE (Tabelle) -->
+            <div id="view-history" class="hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        📊 Übersicht aller Runs
+                    </h2>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-xs border-collapse">
+                            <thead>
+                                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wider font-semibold">
+                                    <th class="py-3 px-4">Run</th>
+                                    <th class="py-3 px-4">Status</th>
+                                    <th class="py-3 px-4">Orden</th>
+                                    <th class="py-3 px-4">Encounter-Stats</th>
+                                    <th class="py-3 px-4">Todesursachen (Schuld)</th>
+                                </tr>
+                            </thead>
+                            <tbody id="runs-overview-table-body" class="divide-y divide-gray-100 text-gray-700">
+                                <tr>
+                                    <td colspan="5" class="py-4 text-center text-gray-400">Lade Daten...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- POKEMON MODAL -->
+    <div id="pokemon-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
+            <h3 id="modal-title" class="text-lg font-bold mb-4">Pokémon eintragen</h3>
+            <form id="pokemon-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Pokémon Name</label>
+                    <input type="text" id="poke-name-input" list="pokemon-list" placeholder="z.B. Pikachu" required class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                    <datalist id="pokemon-list"></datalist>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Level</label>
+                    <input type="number" id="poke-level-input" value="1" min="1" max="100" class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">Status</label>
+                    <select id="poke-status-input" onchange="toggleKillerSelect()" class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="ALIVE">ALIVE</option>
+                        <option value="BOX">BOX</option>
+                        <option value="DEAD">DEAD ☠️</option>
+                        <option value="FAILED">FAILED ❌</option>
+                    </select>
+                </div>
+                <!-- Verursacher-Auswahl (wird nur bei DEAD eingeblendet) -->
+                <div id="killer-container" class="hidden bg-red-50 p-3 rounded-lg border border-red-200">
+                    <label class="block text-xs font-bold text-red-700 uppercase mb-1">Wer ist schuld am Tod? (Soul Link Kettenreaktion)</label>
+                    <select id="poke-killer-input" class="w-full p-1.5 border border-red-300 rounded text-sm bg-white outline-none">
+                        <option value="">Bitte wählen...</option>
+                    </select>
+                    <p class="text-xs text-red-600 mt-1">⚠️ Alle 3 verknüpften Pokémon auf dieser Route sterben dadurch automatisch!</p>
+                </div>
+
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeModal()" class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                    <button type="submit" class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- RUN BEENDEN MODAL -->
+    <div id="finish-run-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h3 class="text-lg font-bold mb-4 text-gray-800">Run beenden</h3>
+            <form id="finish-run-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Ergebnis</label>
+                    <select id="finish-outcome-input" required class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="WIPE">Wipe ☠️ (Verloren)</option>
+                        <option value="ERFOLGREICH">Erfolgreich 🏆 (CHAMPION)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Grund / Anmerkung</label>
+                    <textarea id="finish-note-input" rows="3" placeholder="z.B. Eike verliert alle Pokémon gegen Rockos Onix..." class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeFinishModal()" class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                    <button type="submit" class="w-1/2 bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg font-semibold transition">Run abschließen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JavaScript Logik -->
+    <script>
+        const SUPABASE_URL = "https://wdbchzulchoxpoierbmi.supabase.co";
+        const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkYmNoenVsY2hveHBvaWVyYm1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMjAyNDksImV4cCI6MjEwMDg5NjI0OX0.ERLM8kNAaBIEhshxfFKlDU1JxuG1UezoYD0bd-K1k70";
+        
+        const { createClient } = supabase;
+        const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        const PLAYERS = ["Higa", "Eike", "Ruffy"];
+        const KANTO_ROUTES = [
+            "Alabastia/ Starter", "Alabastia", "Route 1", "Vertania City", "Route 22", 
+            "Route 2", "Vertania-Wald", "Karpador Buy", "Route 3", "Route 4", 
+            "Mondberg", "Azuria City", "Route 24", "Route 25", "Route 5", 
+            "Route 6", "Orania City", "Route 11", "Ms Anne", "Digdas Höhle", 
+            "Route 9", "Route 10", "Felstunnel", "Route 8", "Route 7", 
+            "Prismania City", "Pokémon-Turm (Lavandia)", "Route 16", "Route 17 (Radweg)", "Route 18", 
+            "Fuchsania City", "Safari-Zone", "Route 12", "Route 13", "Route 14", 
+            "Route 15", "Kraftwerk", "Route 19", "Route 20", "Seeschauminseln", 
+            "Zinnoberinsel", "Pokémon-Villa", "Eiland Eins (Schatzstrand/Glutherme)", "Glutberg", "Eiland Zwei (Kap Kante)", 
+            "Eiland Drei (Bundbrücke)", "Beerenforst", "Route 21", "Route 23", "Siegesstraße", 
+            "Eiland Vier (Eiskaskadenhöhle)", "Eiland Fünf (Verlorene Höhle/Weide)", "Eiland Sechs (Musterbusch/Ruintal)", "Eiland Sieben (Schlucht/Tanoby-Ruinen)", "Geheimdungeon (Azuria-Höhle)"
+        ];
+        const KANTO_BADGES = [
+            { id: 1, name: "Felsorden", leader: "Rocko", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><polygon points="10,2 22,2 30,10 30,22 22,30 10,30 2,22 2,10" fill="#9CA3AF" stroke="#4B5563" stroke-width="2"/><polygon points="12,6 20,6 26,12 26,20 20,26 12,26 6,20 6,12" fill="#D1D5DB"/></svg>` },
+            { id: 2, name: "Quellorden", leader: "Misty", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 C16 2 5 14 5 21 A11 11 0 0 0 27 21 C27 14 16 2 16 2 Z" fill="#38BDF8" stroke="#0284C7" stroke-width="2"/><path d="M16 7 C16 7 9 16 9 20 A7 7 0 0 0 23 20 C23 16 16 7 16 7 Z" fill="#7DD3FC"/></svg>` },
+            { id: 3, name: "Donnerorden", leader: "Major Bob", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L19 10 L28 8 L22 15 L29 22 L20 21 L19 30 L14 22 L6 26 L10 18 L3 12 L12 12 Z" fill="#FACC15" stroke="#CA8A04" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="#F97316" stroke="#C2410C" stroke-width="1"/></svg>` },
+            { id: 4, name: "Farborden", leader: "Erika", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><circle cx="16" cy="7" r="5" fill="#EF4444"/><circle cx="25" cy="13" r="5" fill="#3B82F6"/><circle cx="22" cy="23" r="5" fill="#22C55E"/><circle cx="10" cy="23" r="5" fill="#EAB308"/><circle cx="7" cy="13" r="5" fill="#A855F7"/><circle cx="16" cy="16" r="6" fill="#FDE047" stroke="#CA8A04" stroke-width="1.5"/></svg>` },
+            { id: 5, name: "Seelenorden", leader: "Koga", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 29 C16 29 3 20 3 11 A7 7 0 0 1 16 5 A7 7 0 0 1 29 11 C29 20 16 29 16 29 Z" fill="#C084FC" stroke="#7E22CE" stroke-width="2"/><path d="M16 23 C16 23 7 16 7 11 A4.5 4.5 0 0 1 16 7 A4.5 4.5 0 0 1 25 11 C25 16 16 23 16 23 Z" fill="#E9D5FF"/></svg>` },
+            { id: 6, name: "Sumpforden", leader: "Sabrina", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><circle cx="16" cy="16" r="13" fill="#F59E0B" stroke="#B45309" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="#FCD34D" stroke="#B45309" stroke-width="1.5"/><circle cx="16" cy="16" r="4" fill="#78350F"/></svg>` },
+            { id: 7, name: "Vulkanorden", leader: "Pyro", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L29 16 L16 30 L3 16 Z" fill="#EF4444" stroke="#991B1B" stroke-width="2"/><path d="M16 7 L23 16 L16 25 L9 16 Z" fill="#F97316"/><path d="M16 11 L19 16 L16 21 L13 16 Z" fill="#FDE047"/></svg>` },
+            { id: 8, name: "Erdorden", leader: "Giovanni", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 C8 8 5 18 5 28 L16 31 L27 28 C27 18 24 8 16 2 Z" fill="#15803D" stroke="#166534" stroke-width="2"/><path d="M16 6 C11 11 9 18 9 25 L16 26 L23 25 C23 18 21 11 16 6 Z" fill="#22C55E"/><line x1="16" y1="6" x2="16" y2="26" stroke="#15803D" stroke-width="2"/></svg>` }
+        ];
+
+        let currentRunBadges = [];
+        let allPokemonNames = [];
+        let currentRunId = null;
+        let activeRoute = null;
+        let activePlayer = null;
+        let currentRunData = null;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            checkAuth();
+            loadPokemonListForAutofill();
+
+            document.getElementById('login-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const email = document.getElementById('email').value;
+                const password = document.getElementById('password').value;
+                
+                const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
+                if (error) {
+                    document.getElementById('login-error').classList.remove('hidden');
+                } else {
+                    checkAuth();
+                }
+            });
+
+            document.getElementById('pokemon-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await savePokemonData();
+            });
+
+            document.getElementById('finish-run-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const outcome = document.getElementById('finish-outcome-input').value;
+                const note = document.getElementById('finish-note-input').value.trim();
+
+                const { error } = await _supabase.from('runs').update({
+                    is_finished: true,
+                    outcome: outcome,
+                    finish_note: note
+                }).eq('id', currentRunId);
+
+                if (!error) {
+                    closeFinishModal();
+                    await loadRuns();
+                }
+            });
+        });
+
+        async function checkAuth() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (session) {
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('app-screen').classList.remove('hidden');
+                loadRuns();
+            } else {
+                document.getElementById('login-screen').classList.remove('hidden');
+                document.getElementById('app-screen').classList.add('hidden');
+            }
+        }
+
+        async function logout() {
+            await _supabase.auth.signOut();
+            checkAuth();
+        }
+
+        function switchTab(tabName) {
+            const viewTracker = document.getElementById('view-tracker');
+            const viewHistory = document.getElementById('view-history');
+            const btnTracker = document.getElementById('tab-btn-tracker');
+            const btnHistory = document.getElementById('tab-btn-history');
+
+            if (tabName === 'tracker') {
+                viewTracker.classList.remove('hidden');
+                viewHistory.classList.add('hidden');
+                
+                btnTracker.className = "py-3 font-semibold text-blue-600 border-b-2 border-blue-600";
+                btnHistory.className = "py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent";
+            } else if (tabName === 'history') {
+                viewTracker.classList.add('hidden');
+                viewHistory.classList.remove('hidden');
+
+                btnHistory.className = "py-3 font-semibold text-blue-600 border-b-2 border-blue-600";
+                btnTracker.className = "py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent";
+
+                loadAndRenderHistory();
+            }
+        }
+
+        async function loadAndRenderHistory() {
+            const tbody = document.getElementById('runs-overview-table-body');
+            if (!tbody) return;
+            tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-400">Lade Daten...</td></tr>';
+
+            try {
+                const [{ data: runs }, { data: catches }] = await Promise.all([
+                    _supabase.from('runs').select('*'),
+                    _supabase.from('catches').select('*')
+                ]);
+
+                if (!runs || runs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-400">Keine Runs gefunden.</td></tr>';
+                    return;
+                }
+
+                runs.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { numeric: true, sensitivity: 'base' }));
+
+                tbody.innerHTML = runs.map(run => {
+                    const runCatches = (catches || []).filter(c => c.run_id === run.id);
+
+                    const encounterCount = new Set(runCatches.map(c => c.route_name)).size;
+                    const aliveCount = new Set(runCatches.filter(c => c.status === 'ALIVE' || c.status === 'BOX').map(c => c.route_name)).size;
+                    const deadCount = new Set(runCatches.filter(c => c.status === 'DEAD').map(c => c.route_name)).size;
+                    const failedCount = new Set(runCatches.filter(c => c.status === 'FAILED').map(c => c.route_name)).size;
+
+                    const deathCounts = { "Higa": 0, "Eike": 0, "Ruffy": 0 };
+                    const processedRoutes = new Set();
+                    runCatches.forEach(c => {
+                        if (c.status === 'DEAD' && c.killed_by && !processedRoutes.has(c.route_name)) {
+                            if (deathCounts[c.killed_by] !== undefined) deathCounts[c.killed_by]++;
+                            processedRoutes.add(c.route_name);
+                        }
+                    });
+
+                    const playerDeathsHtml = PLAYERS.map(player => `
+                        <span class="inline-flex items-center gap-1 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-[11px]">
+                            <span class="font-bold text-gray-700">${player}:</span>
+                            <span class="font-extrabold text-red-700">${deathCounts[player] || 0} ☠️</span>
+                        </span>
+                    `).join(' ');
+
+                    let statusBadge = `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Laufend 🎮</span>`;
+                    if (run.is_finished) {
+                        statusBadge = (run.outcome === 'ERFOLGREICH' || run.outcome === 'WON')
+                            ? `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Champ 🏆</span>`
+                            : `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Wipe ☠️</span>`;
+                    }
+
+                    const runBadges = run.badges || [];
+                    const badgesHtml = KANTO_BADGES.map(badge => {
+                        const hasBadge = runBadges.includes(badge.id);
+                        return `<div class="inline-block ${hasBadge ? 'opacity-100' : 'opacity-20 grayscale'}" title="${badge.name}">${badge.svg}</div>`;
+                    }).join('');
+
+                    return `
+                        <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                            <td class="py-3 px-4 font-bold text-gray-900">${run.title}</td>
+                            <td class="py-3 px-4">${statusBadge}</td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-1">
+                                    ${badgesHtml}
+                                    <span class="ml-1 text-[11px] font-extrabold text-gray-500">(${runBadges.length}/8)</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Encounters">E: ${encounterCount}</span>
+                                    <span class="bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Alive / Box">A: ${aliveCount}</span>
+                                    <span class="bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Dead">D: ${deadCount}</span>
+                                    <span class="bg-gray-100 text-gray-600 border border-gray-300 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Failed">F: ${failedCount}</span>
+                                </div>
+                            </td>
+                            <td class="py-3 px-4">
+                                <div class="flex items-center gap-1 flex-wrap">
+                                    ${playerDeathsHtml}
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
+            } catch (err) {
+                console.error("Fehler beim Laden der Historie:", err);
+                tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Fehler beim Laden der Historie.</td></tr>';
+            }
+        }
+
+        async function loadPokemonListForAutofill() {
+            try {
+                const res = window.fetch ? await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000') : null;
+                const data = await res.json();
+                
+                const germanNamesPromises = data.results.map(async (p, index) => {
+                    const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${index + 1}`);
+                    const speciesData = await speciesRes.json();
+                    const germanNameObj = speciesData.names.find(n => n.language.name === 'de');
+                    return germanNameObj ? germanNameObj.name : p.name.charAt(0).toUpperCase() + p.name.slice(1);
+                });
+
+                allPokemonNames = await Promise.all(germanNamesPromises);
+                const datalist = document.getElementById('pokemon-list');
+                datalist.innerHTML = allPokemonNames.map(name => `<option value="${name}">`).join('');
+            } catch (e) {
+                console.error("Fehler beim Laden der Pokémon-Liste", e);
+            }
+        }
+
+        async function loadRuns() {
+            const { data, error } = await _supabase.from('runs').select('*').order('created_at', { ascending: false });
+            const select = document.getElementById('run-select');
+            select.innerHTML = '';
+            
+            if (data && data.length > 0) {
+                data.forEach(run => {
+                    const opt = document.createElement('option');
+                    opt.value = run.id;
+                    const statusTag = run.is_finished ? ` [${run.outcome}]` : '';
+                    opt.textContent = `${run.title}${statusTag}`;
+                    select.appendChild(opt);
+                });
+                currentRunId = data[0].id;
+                select.value = currentRunId;
+                
+                select.onchange = (e) => {
+                    currentRunId = e.target.value;
+                    loadRoutesAndCatches();
+                };
+
+                loadRoutesAndCatches();
+            } else {
+                await createNewRun();
+            }
+        }
+
+        async function createNewRun() {
+            const { data: existingRuns } = await _supabase.from('runs').select('title');
+            let nextDefaultName = "1";
+            if (existingRuns && existingRuns.length > 0) {
+                const numbers = existingRuns.map(r => parseInt(r.title)).filter(n => !isNaN(n));
+                if (numbers.length > 0) {
+                    nextDefaultName = String(Math.max(...numbers) + 1);
+                } else {
+                    nextDefaultName = String(existingRuns.length + 1);
+                }
+            }
+
+            const title = prompt("Name oder Nummer des neuen Runs:", nextDefaultName);
+            if (!title || !title.trim()) return;
+
+            const { data, error } = await _supabase.from('runs').insert([{ title: title.trim() }]).select();
+            if (!error && data) {
+                loadRuns();
+            }
+        }
+
+        async function loadRoutesAndCatches() {
+            if (!currentRunId) return;
+
+            const { data: runData } = await _supabase.from('runs').select('*').eq('id', currentRunId).single();
+            currentRunData = runData || {};
+            currentRunBadges = (runData && runData.badges) ? runData.badges : [];
+            
+            updateRunLockState();
+            renderBadges();
+
+            const { data: catches, error } = await _supabase.from('catches').select('*').eq('run_id', currentRunId);
+            
+            const routesMap = {};
+            KANTO_ROUTES.forEach(r => routesMap[r] = {});
+
+            if (catches) {
+                catches.forEach(c => {
+                    if (!routesMap[c.route_name]) routesMap[c.route_name] = {};
+                    routesMap[c.route_name][c.player_name] = c;
+                });
+            }
+
+            renderDeathCounter(catches || []);
+            renderRoutes(routesMap);
+        }
+
+        function renderBadges() {
+            const container = document.getElementById('badges-container');
+            const countEl = document.getElementById('badge-count');
+            if (!container) return;
+
+            container.innerHTML = '';
+            countEl.textContent = `${currentRunBadges.length} / 8`;
+
+            const isFinished = currentRunData && currentRunData.is_finished;
+
+            KANTO_BADGES.forEach(badge => {
+                const isUnlocked = currentRunBadges.includes(badge.id);
+
+                const badgeCard = document.createElement('button');
+                if (!isFinished) {
+                    badgeCard.onclick = () => toggleBadge(badge.id);
+                }
+                badgeCard.className = `flex flex-col items-center p-2 rounded-lg border transition-all duration-200 ${
+                    isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
+                } ${
+                    isUnlocked 
+                        ? 'bg-amber-50 border-amber-300 shadow-sm scale-105' 
+                        : 'bg-gray-50 border-gray-200 opacity-40 grayscale hover:opacity-70'
+                }`;
+
+                badgeCard.innerHTML = `
+                    <div class="mb-1">${badge.svg}</div>
+                    <span class="text-[10px] font-bold ${isUnlocked ? 'text-amber-900' : 'text-gray-500'}">${badge.name}</span>
+                    <span class="text-[8px] text-gray-400">${badge.leader}</span>
+                `;
+
+                container.appendChild(badgeCard);
+            });
+        }
+
+        function updateRunLockState() {
+            const isFinished = currentRunData && currentRunData.is_finished;
+            const banner = document.getElementById('finished-run-banner');
+            const finishBtn = document.getElementById('finish-run-btn');
+
+            if (isFinished) {
+                banner.classList.remove('hidden');
+                finishBtn.classList.add('hidden');
+
+                const badgeEl = document.getElementById('banner-outcome-badge');
+                badgeEl.textContent = currentRunData.outcome;
+                badgeEl.className = `px-2.5 py-1 rounded-full text-xs font-extrabold uppercase ${
+                    currentRunData.outcome === 'WIPE' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'
+                }`;
+                
+                document.getElementById('banner-note').textContent = currentRunData.finish_note ? `"${currentRunData.finish_note}"` : '';
+            } else {
+                banner.classList.add('hidden');
+                finishBtn.classList.remove('hidden');
+            }
+        }
+
+        async function toggleBadge(badgeId) {
+            if (!currentRunId || (currentRunData && currentRunData.is_finished)) return;
+
+            if (currentRunBadges.includes(badgeId)) {
+                currentRunBadges = currentRunBadges.filter(id => id !== badgeId);
+            } else {
+                currentRunBadges.push(badgeId);
+                currentRunBadges.sort((a, b) => a - b);
+            }
+
+            renderBadges();
+
+            await _supabase.from('runs').update({ badges: currentRunBadges }).eq('id', currentRunId);
+        }
+
+        function renderDeathCounter(catches) {
+            const counterBar = document.getElementById('death-counter-bar');
+            if (!counterBar) return;
+            
+            // 1. Encounter Count: Anzahl eindeutiger Routen mit hinterlegtem Pokémon
+            const visitedRoutesSet = new Set(catches.map(c => c.route_name));
+            const encounterCount = visitedRoutesSet.size;
+
+            // 2. Alive Count: Anzahl eindeutiger Routen mit Status ALIVE oder BOX
+            const aliveRoutesSet = new Set(
+                catches
+                    .filter(c => c.status === 'ALIVE' || c.status === 'BOX')
+                    .map(c => c.route_name)
+            );
+            const aliveCount = aliveRoutesSet.size;
+
+            // 3. Dead Count (Gesamt): Anzahl eindeutiger Routen mit Status DEAD
+            const deadRoutesSet = new Set(
+                catches
+                    .filter(c => c.status === 'DEAD')
+                    .map(c => c.route_name)
+            );
+            const deadCount = deadRoutesSet.size;
+
+            // 4. Failed Count: Anzahl eindeutiger Routen mit Status FAILED
+            const failedRoutesSet = new Set(
+                catches
+                    .filter(c => c.status === 'FAILED')
+                    .map(c => c.route_name)
+            );
+            const failedCount = failedRoutesSet.size;
+
+            // 5. Death Counter pro Spieler (Verursacher)
+            const deathCounts = { "Higa": 0, "Eike": 0, "Ruffy": 0 };
+            const processedRoutes = new Set();
+            
+            catches.forEach(c => {
+                if (c.status === 'DEAD' && c.killed_by && !processedRoutes.has(c.route_name)) {
+                    if (deathCounts[c.killed_by] !== undefined) {
+                        deathCounts[c.killed_by]++;
+                    }
+                    processedRoutes.add(c.route_name);
+                }
+            });
+
+            const playerDeathsHtml = PLAYERS.map(player => `
+                <div class="flex items-center space-x-1.5">
+                    <span class="font-bold text-gray-600 text-xs">${player}:</span>
+                    <span class="bg-red-100 text-red-700 font-extrabold px-2 py-0.5 rounded-full text-xs">
+                        ${deathCounts[player] || 0} ☠️
+                    </span>
+                </div>
+            `).join('');
+
+            counterBar.className = "flex flex-wrap justify-between items-center gap-2 mb-4 bg-white p-3 rounded-xl shadow-sm border border-gray-200";
+
+            counterBar.innerHTML = `
+                <!-- Links: Encounters, Alive, Dead (Gesamt), Failed -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <div class="flex items-center space-x-1.5 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-200">
+                        <span class="text-xs font-bold text-blue-900">Encounters:</span>
+                        <span class="text-xs font-extrabold text-blue-700">${encounterCount}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 bg-green-50 px-2.5 py-1.5 rounded-lg border border-green-200">
+                        <span class="text-xs font-bold text-green-900">Alive:</span>
+                        <span class="text-xs font-extrabold text-green-700">${aliveCount}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 bg-gray-100 px-2.5 py-1.5 rounded-lg border border-gray-300">
+                        <span class="text-xs font-bold text-gray-800">Failed:</span>
+                        <span class="text-xs font-extrabold text-gray-600">${failedCount}</span>
+                    </div>
+                    <div class="flex items-center space-x-1.5 bg-red-50 px-2.5 py-1.5 rounded-lg border border-red-200">
+                        <span class="text-xs font-bold text-red-900">Dead:</span>
+                        <span class="text-xs font-extrabold text-red-700">${deadCount}</span>
+                    </div>
+                </div>
+
+                <!-- Rechts: Todesursachen pro Spieler -->
+                <div class="flex items-center space-x-3">
+                    ${playerDeathsHtml}
+                </div>
+            `;
+        }
+
+        function renderRoutes(routesMap) {
+            const container = document.getElementById('routes-container');
+            container.innerHTML = '';
+
+            const showAll = document.getElementById('show-all-checkbox').checked;
+            const isFinished = currentRunData && currentRunData.is_finished;
+            let routesToDisplay = KANTO_ROUTES;
+
+            if (!showAll) {
+                const activeRoutes = KANTO_ROUTES.filter(routeName => {
+                    const playersData = routesMap[routeName] || {};
+                    return PLAYERS.some(player => playersData[player]);
+                });
+
+                let firstIncompleteIndex = KANTO_ROUTES.findIndex(routeName => {
+                    const playersData = routesMap[routeName] || {};
+                    return PLAYERS.some(player => !playersData[player]);
+                });
+
+                if (firstIncompleteIndex === -1) firstIncompleteIndex = 0;
+
+                const nextOpenRoutes = KANTO_ROUTES.slice(firstIncompleteIndex, firstIncompleteIndex + 3);
+                const combinedSet = new Set([...activeRoutes, ...nextOpenRoutes]);
+                routesToDisplay = KANTO_ROUTES.filter(r => combinedSet.has(r));
+            }
+
+            routesToDisplay.forEach(routeName => {
+                const playersData = routesMap[routeName] || {};
+                let routeCard = `
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
+                        <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-gray-700 flex justify-between items-center">
+                            <span>📍 ${routeName}</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200">
+                `;
+
+                PLAYERS.forEach(player => {
+                    const catchInfo = playersData[player];
+                    let content = '';
+
+                    if (catchInfo) {
+                        let statusColor = 'bg-green-50 text-green-700 border-green-200';
+                        if (catchInfo.status === 'DEAD') {
+                            statusColor = 'bg-red-50 text-red-700 border-red-200';
+                        } else if (catchInfo.status === 'BOX') {
+                            statusColor = 'bg-yellow-50 text-yellow-700 border-yellow-200';
+                        } else if (catchInfo.status === 'FAILED') {
+                            statusColor = 'bg-gray-100 text-gray-500 border-gray-300 line-through';
+                        }
+                        const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${catchInfo.pokemon_id || 25}.png`;
+                        
+                        let killerInfo = catchInfo.status === 'DEAD' && catchInfo.killed_by ? `<div class="text-[10px] text-red-600 font-bold">Schuld: ${catchInfo.killed_by}</div>` : '';
+
+                        const editBtnHtml = isFinished ? '' : `
+                            <button onclick="openModal('${routeName}', '${player}', '${catchInfo.pokemon_name || ''}', ${catchInfo.level || 1}, '${catchInfo.status || 'ALIVE'}', '${catchInfo.killed_by || ''}')" class="text-xs bg-white border border-gray-300 px-2 py-1 rounded shadow-sm hover:bg-gray-100">Ändern</button>
+                        `;
+
+                        content = `
+                            <div class="flex items-center space-x-3 p-3 rounded-lg border ${statusColor} my-2">
+                                <img src="${spriteUrl}" alt="${catchInfo.pokemon_name}" class="w-12 h-12 object-contain" onerror="this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png'">
+                                <div class="flex-1">
+                                    <div class="font-bold text-sm">${catchInfo.pokemon_name} (Lvl ${catchInfo.level})</div>
+                                    <div class="text-xs font-semibold">Status: ${catchInfo.status}</div>
+                                    ${killerInfo}
+                                </div>
+                                ${editBtnHtml}
+                            </div>
+                        `;
+                    } else {
+                        const addBtnHtml = isFinished ? `
+                            <span class="text-xs text-gray-400 italic">Kein Eintrag</span>
+                        ` : `
+                            <button onclick="openModal('${routeName}', '${player}', '', 1, 'ALIVE', '')" class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-3 py-2 rounded-lg font-semibold transition">+ Pokémon hinzufügen</button>
+                        `;
+
+                        content = `
+                            <div class="py-4 text-center">
+                                ${addBtnHtml}
+                            </div>
+                        `;
+                    }
+
+                    routeCard += `
+                        <div class="p-4">
+                            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">${player}</div>
+                            ${content}
+                        </div>
+                    `;
+                });
+
+                routeCard += `</div></div>`;
+                container.innerHTML += routeCard;
+            });
+        }
+
+        function openModal(route, player, pokeName, level, status, killedBy) {
+            if (currentRunData && currentRunData.is_finished) return;
+
+            activeRoute = route;
+            activePlayer = player;
+            document.getElementById('modal-title').textContent = `${player} auf ${route}`;
+            document.getElementById('poke-name-input').value = pokeName;
+            document.getElementById('poke-level-input').value = level;
+            document.getElementById('poke-status-input').value = status;
+            
+            const killerSelect = document.getElementById('poke-killer-input');
+            killerSelect.innerHTML = '<option value="">Bitte wählen...</option>' + PLAYERS.map(p => `<option value="${p}" ${p === killedBy ? 'selected' : ''}>${p}</option>`).join('');
+            
+            toggleKillerSelect();
+            document.getElementById('pokemon-modal').classList.remove('hidden');
+        }
+
+        function toggleKillerSelect() {
+            const status = document.getElementById('poke-status-input').value;
+            const container = document.getElementById('killer-container');
+            if (status === 'DEAD') {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                document.getElementById('poke-killer-input').value = '';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('pokemon-modal').classList.add('hidden');
+        }
+
+        async function savePokemonData() {
+            if (currentRunData && currentRunData.is_finished) return;
+
+            const pokemonNameInput = document.getElementById('poke-name-input').value.trim();
+            const level = parseInt(document.getElementById('poke-level-input').value) || 1;
+            const status = document.getElementById('poke-status-input').value;
+            const killedBy = status === 'DEAD' ? document.getElementById('poke-killer-input').value : null;
+
+            if (!pokemonNameInput) return;
+
+            let pokemonId = 25; 
+
+            try {
+                let res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonNameInput.toLowerCase()}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    pokemonId = data.id;
+                } else {
+                    const listRes = await fetch('https://pokeapi.co/api/v2/pokemon-species?limit=1025');
+                    const listData = await listRes.json();
+                    const index = listData.results.findIndex(species => species.name === pokemonNameInput.toLowerCase());
+                    if (index !== -1) {
+                        pokemonId = index + 1;
+                    } else if (typeof allPokemonNames !== 'undefined') {
+                        const foundIdx = allPokemonNames.findIndex(n => n.toLowerCase() === pokemonNameInput.toLowerCase());
+                        if (foundIdx !== -1) pokemonId = foundIdx + 1;
+                    }
+                }
+            } catch (e) {
+                console.warn("Fehler beim Ermitteln der ID: ", e);
+            }
+
+            try {
+                const { data: existingCatches, error: fetchError } = await _supabase
+                    .from('catches')
+                    .select('id, player_name')
+                    .eq('run_id', currentRunId)
+                    .eq('route_name', activeRoute);
+
+                if (fetchError) {
+                    console.error("Fehler beim Laden der Route:", fetchError);
+                    return;
+                }
+
+                const existingMap = {};
+                if (existingCatches) {
+                    existingCatches.forEach(c => {
+                        existingMap[c.player_name] = c.id;
+                    });
+                }
+
+                const activeCatchId = existingMap[activePlayer];
+                const activeData = {
+                    run_id: currentRunId,
+                    route_name: activeRoute,
+                    player_name: activePlayer,
+                    pokemon_name: pokemonNameInput,
+                    pokemon_id: pokemonId,
+                    level: level,
+                    status: status,
+                    killed_by: status === 'DEAD' ? killedBy : null
+                };
+
+                // 1. Eichen/Aktualisieren des aktiven Eintrags
+                if (activeCatchId) {
+                    const { error: updateErr } = await _supabase
+                        .from('catches')
+                        .update(activeData)
+                        .eq('id', activeCatchId);
+                    if (updateErr) console.error("Update Fehler:", updateErr);
+                } else {
+                    const { error: insertErr } = await _supabase
+                        .from('catches')
+                        .insert([activeData]);
+                    if (insertErr) console.error("Insert Fehler:", insertErr);
+                }
+
+                // 2. Synchronisation aller Partner auf dieser Route
+                for (const p of PLAYERS) {
+                    if (p !== activePlayer && existingMap[p]) {
+                        const partnerCatchId = existingMap[p];
+                        const updatePayload = {
+                            status: status,
+                            killed_by: status === 'DEAD' ? killedBy : null
+                        };
+
+                        const { error: partnerErr } = await _supabase
+                            .from('catches')
+                            .update(updatePayload)
+                            .eq('id', partnerCatchId);
+
+                        if (partnerErr) console.error(`Partner Update Fehler bei ${p}:`, partnerErr);
+                    }
+                }
+
+                closeModal();
+                await loadRoutesAndCatches();
+
+            } catch (err) {
+                console.error("Unerwarteter Fehler in savePokemonData:", err);
+            }
+        }
+
+        function openFinishRunModal() {
+            if (currentRunData && currentRunData.is_finished) return;
+            document.getElementById('finish-run-modal').classList.remove('hidden');
+        }
+
+        function closeFinishModal() {
+            document.getElementById('finish-run-modal').classList.add('hidden');
+        }
+
+        async function reopenRun() {
+            if (!confirm("Möchtest du diesen Run wirklich wieder zur Bearbeitung freigeben?")) return;
+            
+            const { error } = await _supabase.from('runs').update({
+                is_finished: false,
+                outcome: null,
+                finish_note: null
+            }).eq('id', currentRunId);
+
+            if (!error) {
+                await loadRuns();
+            }
+        }
+    </script>
+</body>
+</html>
