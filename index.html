@@ -8,6 +8,59 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .gag-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+        }
+        .gag-card {
+            background: #1e1e24;
+            color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        }
+        .gag-options {
+            text-align: left;
+            margin: 20px 0;
+        }
+        .gag-options label {
+            display: block;
+            margin: 10px 0;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+        .gag-message {
+            margin: 15px 0;
+            padding: 10px;
+            background: #2a2a36;
+            border-left: 4px solid #ff4757;
+            font-weight: bold;
+            color: #ff6b81;
+        }
+        .gag-card button {
+            background: #2ed573;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 10px;
+        }
+    </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-gray-800">
 
@@ -206,6 +259,24 @@
         </div>
     </div>
 
+    <!-- GAG MODAL -->
+    <div id="gagModal" class="gag-overlay" style="display: none;">
+        <div class="gag-card">
+            <h2 class="text-xl font-bold mb-2">Willkommen an Bord! 🎮</h2>
+            <p class="text-sm text-gray-300">Bevor du die volle Entfaltung der App genießen darfst, wähle bitte, wer deiner Meinung nach der beste Pokémon-Trainer an Bord ist:</p>
+
+            <div class="gag-options">
+                <label><input type="radio" name="trainer" value="Higa"> Higa</label>
+                <label><input type="radio" name="trainer" value="Ruffy"> Ruffy</label>
+                <label><input type="radio" name="trainer" value="Eike"> Eike</label>
+            </div>
+
+            <div id="gagMessage" class="gag-message" style="display: none;"></div>
+
+            <button id="gagBtn" onclick="processGagSelection()">Auswahl bestätigen</button>
+        </div>
+    </div>
+
     <!-- JavaScript Logik -->
     <script>
         const SUPABASE_URL = "https://wdbchzulchoxpoierbmi.supabase.co";
@@ -245,6 +316,7 @@
         let activeRoute = null;
         let activePlayer = null;
         let currentRunData = null;
+        let gagStep = 1;
 
         window.addEventListener('DOMContentLoaded', async () => {
             checkAuth();
@@ -286,11 +358,58 @@
             });
         });
 
+        function checkFirstLogin(user) {
+            const hasSeenGag = user?.user_metadata?.has_seen_gag;
+            if (!hasSeenGag) {
+                document.getElementById('gagModal').style.display = 'flex';
+            }
+        }
+
+        async function processGagSelection() {
+            const selectedOption = document.querySelector('input[name="trainer"]:checked');
+            
+            if (!selectedOption) {
+                alert('Bitte wähle eine Option aus!');
+                return;
+            }
+
+            const msgDiv = document.getElementById('gagMessage');
+            const btn = document.getElementById('gagBtn');
+
+            if (gagStep === 1) {
+                document.querySelectorAll('input[name="trainer"]').forEach(r => r.checked = false);
+                document.querySelector('input[name="trainer"][value="Higa"]').checked = true;
+
+                msgDiv.innerText = "Ich entscheide mich für Higa.";
+                msgDiv.style.display = 'block';
+
+                btn.innerText = "Bestätigen & Weiter";
+                gagStep = 2;
+            } else if (gagStep === 2) {
+                btn.disabled = true;
+                btn.innerText = "Speichern...";
+
+                const { data, error } = await _supabase.auth.updateUser({
+                    data: { has_seen_gag: true }
+                });
+
+                if (error) {
+                    alert("Fehler beim Speichern: " + error.message);
+                    btn.disabled = false;
+                    btn.innerText = "Bestätigen & Weiter";
+                    return;
+                }
+
+                document.getElementById('gagModal').style.display = 'none';
+            }
+        }
+
         async function checkAuth() {
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
+                checkFirstLogin(session.user);
                 loadRuns();
             } else {
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -584,11 +703,9 @@
             const counterBar = document.getElementById('death-counter-bar');
             if (!counterBar) return;
             
-            // 1. Encounter Count: Anzahl eindeutiger Routen mit hinterlegtem Pokémon
             const visitedRoutesSet = new Set(catches.map(c => c.route_name));
             const encounterCount = visitedRoutesSet.size;
 
-            // 2. Alive Count: Anzahl eindeutiger Routen mit Status ALIVE oder BOX
             const aliveRoutesSet = new Set(
                 catches
                     .filter(c => c.status === 'ALIVE' || c.status === 'BOX')
@@ -596,7 +713,6 @@
             );
             const aliveCount = aliveRoutesSet.size;
 
-            // 3. Dead Count (Gesamt): Anzahl eindeutiger Routen mit Status DEAD
             const deadRoutesSet = new Set(
                 catches
                     .filter(c => c.status === 'DEAD')
@@ -604,7 +720,6 @@
             );
             const deadCount = deadRoutesSet.size;
 
-            // 4. Failed Count: Anzahl eindeutiger Routen mit Status FAILED
             const failedRoutesSet = new Set(
                 catches
                     .filter(c => c.status === 'FAILED')
@@ -612,7 +727,6 @@
             );
             const failedCount = failedRoutesSet.size;
 
-            // 5. Death Counter pro Spieler (Verursacher)
             const deathCounts = { "Higa": 0, "Eike": 0, "Ruffy": 0 };
             const processedRoutes = new Set();
             
@@ -637,7 +751,6 @@
             counterBar.className = "flex flex-wrap justify-between items-center gap-2 mb-4 bg-white p-3 rounded-xl shadow-sm border border-gray-200";
 
             counterBar.innerHTML = `
-                <!-- Links: Encounters, Alive, Dead (Gesamt), Failed -->
                 <div class="flex flex-wrap items-center gap-2">
                     <div class="flex items-center space-x-1.5 bg-blue-50 px-2.5 py-1.5 rounded-lg border border-blue-200">
                         <span class="text-xs font-bold text-blue-900">Encounters:</span>
@@ -657,7 +770,6 @@
                     </div>
                 </div>
 
-                <!-- Rechts: Todesursachen pro Spieler -->
                 <div class="flex items-center space-x-3">
                     ${playerDeathsHtml}
                 </div>
@@ -854,7 +966,6 @@
                     killed_by: status === 'DEAD' ? killedBy : null
                 };
 
-                // 1. Eichen/Aktualisieren des aktiven Eintrags
                 if (activeCatchId) {
                     const { error: updateErr } = await _supabase
                         .from('catches')
@@ -868,7 +979,6 @@
                     if (insertErr) console.error("Insert Fehler:", insertErr);
                 }
 
-                // 2. Synchronisation aller Partner auf dieser Route
                 for (const p of PLAYERS) {
                     if (p !== activePlayer && existingMap[p]) {
                         const partnerCatchId = existingMap[p];
