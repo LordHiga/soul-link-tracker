@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Nuzlocke Soul Link Tracker</title>
-    <!-- Tailwind CSS für schnelles, sauberes Design -->
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -115,6 +115,9 @@
                 <button id="tab-btn-history" onclick="switchTab('history')" class="py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent">
                     📊 Run-Historie
                 </button>
+                <button id="tab-btn-feedback" onclick="switchTab('feedback')" class="py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent">
+                    💡 Features & Bugs
+                </button>
             </div>
         </nav>
 
@@ -132,23 +135,16 @@
 
             <!-- ANSICHT 1: AKTUELLER RUN (Dashboard) -->
             <div id="view-tracker">
-                <!-- Death Counter Dashboard Leiste -->
-                <div id="death-counter-bar" class="mb-4">
-                    <!-- Wird dynamisch gefüllt -->
-                </div>
+                <div id="death-counter-bar" class="mb-4"></div>
 
-                <!-- Orden-Leiste (Feuerrot/Blattgrün) -->
                 <div id="badges-bar" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Erreichte Orden</span>
                         <span id="badge-count" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">0 / 8</span>
                     </div>
-                    <div id="badges-container" class="grid grid-cols-4 sm:grid-cols-8 gap-2">
-                        <!-- Wird dynamisch per JS befüllt -->
-                    </div>
+                    <div id="badges-container" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
                 </div>
 
-                <!-- Steuerung für Routen -->
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-700">Routen-Übersicht</h2>
                     <div class="flex items-center space-x-4">
@@ -159,10 +155,7 @@
                     </div>
                 </div>
 
-                <!-- Routen Liste -->
-                <div id="routes-container" class="space-y-4">
-                    <!-- Wird per JavaScript befüllt -->
-                </div>
+                <div id="routes-container" class="space-y-4"></div>
             </div>
 
             <!-- ANSICHT 2: RUN-HISTORIE (Tabelle) -->
@@ -188,6 +181,36 @@
                                 </tr>
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ANSICHT 3: FEATURES & BUGS (Wunschliste & Filter) -->
+            <div id="view-feedback" class="hidden">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                        <div>
+                            <h2 class="text-lg font-bold text-gray-800">💡 Feature-Wünsche & Bug-Reports</h2>
+                            <p class="text-xs text-gray-500">Hier können Vorschläge, gewünschte Anpassungen und Fehler eingetragen werden.</p>
+                        </div>
+                        <div class="flex items-center space-x-3 self-stretch sm:self-auto justify-between sm:justify-end">
+                            <div class="flex items-center space-x-2">
+                                <label class="text-xs font-bold text-gray-500">Einstufung:</label>
+                                <select id="feedback-filter-type" onchange="loadFeedback()" class="text-xs bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                                    <option value="ALL">Alle Anzeigen</option>
+                                    <option value="Feature">Nur Features 💡</option>
+                                    <option value="Bug">Nur Bugs 🐛</option>
+                                    <option value="Sonstiges">Nur Sonstiges 📌</option>
+                                </select>
+                            </div>
+                            <button onclick="openFeedbackModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-bold transition">
+                                + Eintrag erstellen
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="feedback-list-container" class="space-y-3">
+                        <p class="text-gray-400 text-sm">Lade Einträge...</p>
                     </div>
                 </div>
             </div>
@@ -218,7 +241,6 @@
                         <option value="FAILED">FAILED ❌</option>
                     </select>
                 </div>
-                <!-- Verursacher-Auswahl (wird nur bei DEAD eingeblendet) -->
                 <div id="killer-container" class="hidden bg-red-50 p-3 rounded-lg border border-red-200">
                     <label class="block text-xs font-bold text-red-700 uppercase mb-1">Wer ist schuld am Tod? (Soul Link Kettenreaktion)</label>
                     <select id="poke-killer-input" class="w-full p-1.5 border border-red-300 rounded text-sm bg-white outline-none">
@@ -254,6 +276,32 @@
                 <div class="flex space-x-3 pt-2">
                     <button type="button" onclick="closeFinishModal()" class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
                     <button type="submit" class="w-1/2 bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg font-semibold transition">Run abschließen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FEEDBACK MODAL (FEAT/BUG ERSTELLEN ODER EDITIEREN) -->
+    <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h3 id="feedback-modal-title" class="text-lg font-bold mb-4 text-gray-800">Neuen Eintrag erstellen</h3>
+            <form id="feedback-form" class="space-y-4">
+                <input type="hidden" id="feedback-id">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Einstufung (Typ)</label>
+                    <select id="feedback-type" required class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="Feature">Feature-Wunsch 💡</option>
+                        <option value="Bug">Bug-Report 🐛</option>
+                        <option value="Sonstiges">Sonstiges 📌</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                    <textarea id="feedback-description" rows="4" required placeholder="z.B. Elemente der Pokémon-Szenen in der Tabelle darstellen..." class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeFeedbackModal()" class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                    <button type="submit" class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
                 </div>
             </form>
         </div>
@@ -316,6 +364,7 @@
         let activeRoute = null;
         let activePlayer = null;
         let currentRunData = null;
+        let currentUserEmail = null;
         let gagStep = 1;
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -356,6 +405,11 @@
                     await loadRuns();
                 }
             });
+
+            document.getElementById('feedback-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                await saveFeedback();
+            });
         });
 
         function checkFirstLogin(user) {
@@ -365,53 +419,64 @@
             }
         }
 
-        async function processGagSelection() {
-            const selectedOption = document.querySelector('input[name="trainer"]:checked');
-            
-            if (!selectedOption) {
-                alert('Bitte wähle eine Option aus!');
-                return;
-            }
+async function processGagSelection() {
+    const selectedOption = document.querySelector('input[name="trainer"]:checked');
+    
+    if (!selectedOption) {
+        alert('Bitte wähle eine Option aus!');
+        return;
+    }
 
-            const msgDiv = document.getElementById('gagMessage');
-            const btn = document.getElementById('gagBtn');
+    const msgDiv = document.getElementById('gagMessage');
+    const btn = document.getElementById('gagBtn');
 
-            if (gagStep === 1) {
-                document.querySelectorAll('input[name="trainer"]').forEach(r => r.checked = false);
-                document.querySelector('input[name="trainer"][value="Higa"]').checked = true;
+    if (gagStep === 1) {
+        document.querySelectorAll('input[name="trainer"]').forEach(r => r.checked = false);
+        document.querySelector('input[name="trainer"][value="Higa"]').checked = true;
 
-                msgDiv.innerText = "Ich entscheide mich für Higa.";
-                msgDiv.style.display = 'block';
+        msgDiv.innerText = "Ich entscheide mich für Higa.";
+        msgDiv.style.display = 'block';
 
-                btn.innerText = "Bestätigen & Weiter";
-                gagStep = 2;
-            } else if (gagStep === 2) {
-                btn.disabled = true;
-                btn.innerText = "Speichern...";
+        btn.innerText = "Bestätigen & Weiter";
+        gagStep = 2;
+    } else if (gagStep === 2) {
+        btn.disabled = true;
+        btn.innerText = "Speichern...";
 
-                const { data, error } = await _supabase.auth.updateUser({
-                    data: { has_seen_gag: true }
-                });
-
-                if (error) {
-                    alert("Fehler beim Speichern: " + error.message);
-                    btn.disabled = false;
-                    btn.innerText = "Bestätigen & Weiter";
-                    return;
-                }
-
-                document.getElementById('gagModal').style.display = 'none';
-            }
+        // Session vor dem API-Call prüfen
+        const { data: { session } } = await _supabase.auth.getSession();
+        
+        if (!session) {
+            alert("Sitzung abgelaufen. Bitte melde dich erneut an.");
+            document.getElementById('gagModal').style.display = 'none';
+            logout();
+            return;
         }
 
+        const { data, error } = await _supabase.auth.updateUser({
+            data: { has_seen_gag: true }
+        });
+
+        if (error) {
+            alert("Fehler beim Speichern: " + error.message);
+            btn.disabled = false;
+            btn.innerText = "Bestätigen & Weiter";
+            return;
+        }
+
+        document.getElementById('gagModal').style.display = 'none';
+    }
+}
         async function checkAuth() {
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
+                currentUserEmail = session.user.email;
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
                 checkFirstLogin(session.user);
                 loadRuns();
             } else {
+                currentUserEmail = null;
                 document.getElementById('login-screen').classList.remove('hidden');
                 document.getElementById('app-screen').classList.add('hidden');
             }
@@ -425,26 +490,164 @@
         function switchTab(tabName) {
             const viewTracker = document.getElementById('view-tracker');
             const viewHistory = document.getElementById('view-history');
+            const viewFeedback = document.getElementById('view-feedback');
+
             const btnTracker = document.getElementById('tab-btn-tracker');
             const btnHistory = document.getElementById('tab-btn-history');
+            const btnFeedback = document.getElementById('tab-btn-feedback');
+
+            viewTracker.classList.add('hidden');
+            viewHistory.classList.add('hidden');
+            viewFeedback.classList.add('hidden');
+
+            btnTracker.className = "py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent";
+            btnHistory.className = "py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent";
+            btnFeedback.className = "py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent";
 
             if (tabName === 'tracker') {
                 viewTracker.classList.remove('hidden');
-                viewHistory.classList.add('hidden');
-                
                 btnTracker.className = "py-3 font-semibold text-blue-600 border-b-2 border-blue-600";
-                btnHistory.className = "py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent";
             } else if (tabName === 'history') {
-                viewTracker.classList.add('hidden');
                 viewHistory.classList.remove('hidden');
-
                 btnHistory.className = "py-3 font-semibold text-blue-600 border-b-2 border-blue-600";
-                btnTracker.className = "py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent";
-
                 loadAndRenderHistory();
+            } else if (tabName === 'feedback') {
+                viewFeedback.classList.remove('hidden');
+                btnFeedback.className = "py-3 font-semibold text-blue-600 border-b-2 border-blue-600";
+                loadFeedback();
             }
         }
 
+        /* --- FEEDBACK TAB LOGIK (INKL. EINSTUFUNGS-FILTER) --- */
+        async function loadFeedback() {
+            const container = document.getElementById('feedback-list-container');
+            const filterType = document.getElementById('feedback-filter-type')?.value || 'ALL';
+
+            if (!container) return;
+            container.innerHTML = '<p class="text-gray-400 text-sm">Lade Einträge...</p>';
+
+            let query = _supabase.from('feedbacks').select('*').order('created_at', { ascending: false });
+
+            // Falls gefiltert werden soll (Feature / Bug / Sonstiges)
+            if (filterType !== 'ALL') {
+                query = query.eq('type', filterType);
+            }
+
+            const { data, error } = await query;
+
+            if (error) {
+                container.innerHTML = '<p class="text-red-500 text-sm">Fehler beim Laden der Einträge.</p>';
+                return;
+            }
+
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p class="text-gray-400 text-sm">Keine Einträge für die gewählte Einstufung vorhanden.</p>';
+                return;
+            }
+
+            container.innerHTML = data.map(item => {
+                const dateObj = new Date(item.created_at);
+                const dateStr = dateObj.toLocaleDateString('de-DE', {
+                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                });
+
+                let badgeColor = 'bg-blue-100 text-blue-800 border-blue-200';
+                let icon = '💡';
+                if (item.type === 'Bug') {
+                    badgeColor = 'bg-red-100 text-red-800 border-red-200';
+                    icon = '🐛';
+                } else if (item.type === 'Sonstiges') {
+                    badgeColor = 'bg-gray-100 text-gray-800 border-gray-300';
+                    icon = '📌';
+                }
+
+                const safeDesc = escapeHtml(item.description);
+
+                return `
+                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div class="space-y-1.5 flex-1">
+                            <div class="flex items-center gap-2 flex-wrap">
+                                <span class="text-xs font-extrabold px-2.5 py-0.5 rounded border ${badgeColor}">${icon} ${item.type}</span>
+                                <span class="text-xs text-gray-400">📅 ${dateStr}</span>
+                                <span class="text-xs text-gray-500">von <b>${item.user_email}</b></span>
+                            </div>
+                            <p class="text-gray-800 text-sm whitespace-pre-line font-medium leading-relaxed">${safeDesc}</p>
+                        </div>
+                        <div class="flex items-center space-x-2 shrink-0 self-end md:self-center">
+                            <button onclick="openFeedbackModal('${item.id}', '${item.type}', \`${safeDesc}\`)" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded font-semibold transition">
+                                ✏️ Bearbeiten
+                            </button>
+                            <button onclick="deleteFeedback('${item.id}')" class="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded font-semibold transition">
+                                🗑️ Löschen
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openFeedbackModal(id = null, type = 'Feature', description = '') {
+            document.getElementById('feedback-id').value = id || '';
+            document.getElementById('feedback-type').value = type;
+            document.getElementById('feedback-description').value = description;
+
+            document.getElementById('feedback-modal-title').textContent = id ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen';
+            document.getElementById('feedback-modal').classList.remove('hidden');
+        }
+
+        function closeFeedbackModal() {
+            document.getElementById('feedback-modal').classList.add('hidden');
+        }
+
+        async function saveFeedback() {
+            const id = document.getElementById('feedback-id').value;
+            const type = document.getElementById('feedback-type').value;
+            const description = document.getElementById('feedback-description').value.trim();
+
+            if (!description) return;
+
+            if (id) {
+                const { error } = await _supabase.from('feedbacks').update({
+                    type: type,
+                    description: description
+                }).eq('id', id);
+
+                if (error) alert("Fehler beim Aktualisieren: " + error.message);
+            } else {
+                const { error } = await _supabase.from('feedbacks').insert([{
+                    user_email: currentUserEmail || 'Unbekannt',
+                    type: type,
+                    description: description
+                }]);
+
+                if (error) alert("Fehler beim Erstellen: " + error.message);
+            }
+
+            closeFeedbackModal();
+            loadFeedback();
+        }
+
+        async function deleteFeedback(id) {
+            if (!confirm("Möchtest du diesen Eintrag wirklich löschen?")) return;
+
+            const { error } = await _supabase.from('feedbacks').delete().eq('id', id);
+            if (error) {
+                alert("Fehler beim Löschen: " + error.message);
+            } else {
+                loadFeedback();
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text.replace(/&/g, "&amp;")
+                       .replace(/</g, "&lt;")
+                       .replace(/>/g, "&gt;")
+                       .replace(/"/g, "&quot;")
+                       .replace(/'/g, "&#039;");
+        }
+
+        /* --- RUN HISTORIE & DASHBOARD LOGIK --- */
         async function loadAndRenderHistory() {
             const tbody = document.getElementById('runs-overview-table-body');
             if (!tbody) return;
