@@ -443,27 +443,27 @@ async function processGagSelection() {
         btn.disabled = true;
         btn.innerText = "Speichern...";
 
-        // Session vor dem API-Call prüfen
-        const { data: { session } } = await _supabase.auth.getSession();
-        
-        if (!session) {
-            alert("Sitzung abgelaufen. Bitte melde dich erneut an.");
+        // 1. Token vor dem Request aktualisieren
+        const { data: refreshData, error: refreshError } = await _supabase.auth.refreshSession();
+
+        if (refreshError || !refreshData.session) {
+            // Keine gültige Session mehr vorhanden -> Abmelden
             document.getElementById('gagModal').style.display = 'none';
             logout();
             return;
         }
 
-        const { data, error } = await _supabase.auth.updateUser({
+        // 2. Versuch, das Flag 'has_seen_gag' in den User-Metadaten zu speichern
+        const { error: updateError } = await _supabase.auth.updateUser({
             data: { has_seen_gag: true }
         });
 
-        if (error) {
-            alert("Fehler beim Speichern: " + error.message);
-            btn.disabled = false;
-            btn.innerText = "Bestätigen & Weiter";
-            return;
+        if (updateError) {
+            // Fehler nur loggen, Nutzer aber nicht blockieren
+            console.warn("Gag-Status konnte nicht in Supabase gespeichert werden:", updateError.message);
         }
 
+        // 3. Modal IMMER schließen, damit der Nutzer die App nutzen kann
         document.getElementById('gagModal').style.display = 'none';
     }
 }
