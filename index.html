@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,6 +22,7 @@
             justify-content: center;
             z-index: 10000;
         }
+
         .gag-card {
             background: #1e1e24;
             color: #ffffff;
@@ -29,18 +31,21 @@
             max-width: 400px;
             width: 90%;
             text-align: center;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
         }
+
         .gag-options {
             text-align: left;
             margin: 20px 0;
         }
+
         .gag-options label {
             display: block;
             margin: 10px 0;
             cursor: pointer;
             font-size: 1.1rem;
         }
+
         .gag-message {
             margin: 15px 0;
             padding: 10px;
@@ -49,6 +54,7 @@
             font-weight: bold;
             color: #ff6b81;
         }
+
         .gag-card button {
             background: #2ed573;
             color: white;
@@ -62,6 +68,7 @@
         }
     </style>
 </head>
+
 <body class="bg-gray-100 min-h-screen text-gray-800">
 
     <!-- LOGIN CONTAINER -->
@@ -71,13 +78,16 @@
             <form id="login-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">E-Mail</label>
-                    <input type="email" id="email" required class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="email" id="email" required
+                        class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Passwort</label>
-                    <input type="password" id="password" required class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
+                    <input type="password" id="password" required
+                        class="mt-1 w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none">
                 </div>
-                <button type="submit" class="w-full bg-blue-900 text-white p-2 rounded-lg font-semibold hover:bg-blue-800 transition">Einloggen</button>
+                <button type="submit"
+                    class="w-full bg-blue-900 text-white p-2 rounded-lg font-semibold hover:bg-blue-800 transition">Einloggen</button>
                 <p id="login-error" class="text-red-500 text-sm text-center hidden">Falsche Anmeldedaten!</p>
             </form>
         </div>
@@ -87,69 +97,123 @@
     <div id="app-screen" class="hidden">
         <!-- Header -->
         <header class="bg-blue-950 text-white shadow-md">
-            <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="max-w-[1600px] mx-auto px-4 py-3 flex justify-between items-center">
                 <div class="flex items-center space-x-3">
                     <span class="text-xl font-bold">🛡️ SOUL LINK TRACKER</span>
                 </div>
                 <div class="flex items-center space-x-4">
                     <div class="flex items-center space-x-2">
                         <span class="text-sm text-gray-300">Run:</span>
-                        <select id="run-select" class="bg-blue-900 text-white text-sm rounded px-2 py-1 border border-blue-700 outline-none"></select>
-                        <button onclick="createNewRun()" class="bg-green-600 hover:bg-green-500 text-xs px-2 py-1.5 rounded font-bold transition">+ Neuer Run</button>
-                        <button id="finish-run-btn" onclick="openFinishRunModal()" class="bg-red-800 hover:bg-red-700 text-xs px-2 py-1.5 rounded font-bold transition text-white">
+                        <select id="run-select"
+                            class="bg-blue-900 text-white text-sm rounded px-2 py-1 border border-blue-700 outline-none"></select>
+                        <button onclick="openNewRunModal()"
+                            class="bg-green-600 hover:bg-green-500 text-xs px-2 py-1.5 rounded font-bold transition">+
+                            Neuer Run</button>
+                        <button id="finish-run-btn" onclick="openFinishRunModal()"
+                            class="bg-red-800 hover:bg-red-700 text-xs px-2 py-1.5 rounded font-bold transition text-white">
                             🏁 Run beenden
                         </button>
                     </div>
                     <div class="border-l border-blue-800 h-6"></div>
-                    <button onclick="logout()" class="text-xs bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded font-bold transition">Logout [x]</button>
+                    <button onclick="logout()"
+                        class="text-xs bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded font-bold transition">Logout
+                        [x]</button>
                 </div>
             </div>
         </header>
 
         <!-- Navigation Tabs -->
         <nav class="bg-white border-b border-gray-200 shadow-sm">
-            <div class="max-w-7xl mx-auto flex space-x-8 px-4">
-                <button id="tab-btn-tracker" onclick="switchTab('tracker')" class="py-3 font-semibold text-blue-600 border-b-2 border-blue-600">
+            <div class="max-w-[1600px] mx-auto flex space-x-8 px-4">
+                <button id="tab-btn-tracker" onclick="switchTab('tracker')"
+                    class="py-3 font-semibold text-blue-600 border-b-2 border-blue-600">
                     🎮 Aktueller Run
                 </button>
-                <button id="tab-btn-history" onclick="switchTab('history')" class="py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent">
+                <button id="tab-btn-history" onclick="switchTab('history')"
+                    class="py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent">
                     📊 Run-Historie
                 </button>
-                <button id="tab-btn-feedback" onclick="switchTab('feedback')" class="py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent">
+                <button id="tab-btn-feedback" onclick="switchTab('feedback')"
+                    class="py-3 font-semibold text-gray-500 hover:text-blue-600 border-b-2 border-transparent">
                     💡 Features & Bugs
                 </button>
             </div>
         </nav>
 
-        <!-- Status-Banner für beendete Runs -->
-        <div id="finished-run-banner" class="hidden bg-amber-50 border-b border-amber-200 p-4 text-center">
-            <div class="max-w-7xl mx-auto flex items-center justify-center space-x-3">
-                <span id="banner-outcome-badge" class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase"></span>
-                <span id="banner-note" class="text-sm font-medium text-gray-700 italic"></span>
-                <button onclick="reopenRun()" class="text-xs text-gray-500 underline hover:text-gray-800 ml-4">Bearbeitung wieder aktivieren</button>
-            </div>
-        </div>
-
         <!-- Content Area -->
-        <main class="max-w-7xl mx-auto px-4 py-6">
+        <main class="max-w-[1600px] mx-auto px-4 py-6">
 
             <!-- ANSICHT 1: AKTUELLER RUN (Dashboard) -->
             <div id="view-tracker">
+
+                <!-- Status-Banner für beendete Runs -->
+                <div id="finished-run-banner" class="hidden bg-amber-50 border-b border-amber-200 p-4 text-center">
+                    <div class="max-w-7xl mx-auto flex items-center justify-center space-x-3">
+                        <span id="banner-outcome-badge"
+                            class="px-2.5 py-1 rounded-full text-xs font-extrabold uppercase"></span>
+                        <span id="banner-note" class="text-sm font-medium text-gray-700 italic"></span>
+                        <button onclick="reopenRun()"
+                            class="text-xs text-gray-500 underline hover:text-gray-800 ml-4">Bearbeitung wieder
+                            aktivieren</button>
+                    </div>
+                </div>
+
                 <div id="death-counter-bar" class="mb-4"></div>
 
+                <div id="run-dates-bar"
+                    class="bg-white p-3 rounded-xl shadow-sm border border-gray-200 mb-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+                    <div class="flex items-center space-x-4">
+                        <div class="flex items-center space-x-2">
+                            <span class="font-semibold text-gray-500">📅 Start:</span>
+                            <span id="display-startdate" class="font-medium text-gray-800">-</span>
+                            <input type="text" id="edit-startdate-input"
+                                class="hidden border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="dd.MM.yy HH:mm">
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="font-semibold text-gray-500">🏁 Ende:</span>
+                            <span id="display-enddate" class="font-medium text-gray-800">-</span>
+                            <input type="text" id="edit-enddate-input"
+                                class="hidden border border-gray-300 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-blue-500"
+                                placeholder="dd.MM.yy HH:mm">
+                        </div>
+                    </div>
+                    <div id="run-dates-action-container">
+                        <button id="save-dates-btn" onclick="saveRunDates()"
+                            class="hidden bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded transition">
+                            💾 Daten speichern
+                        </button>
+                    </div>
+                </div>
+
                 <div id="badges-bar" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Erreichte Orden</span>
-                        <span id="badge-count" class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">0 / 8</span>
+                        <span id="badge-count"
+                            class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">0 / 8</span>
                     </div>
                     <div id="badges-container" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
+
+                    <hr class="my-4 border-gray-100">
+
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Top 4 & Champ</span>
+                        <span id="top4-count"
+                            class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">0
+                            / 5</span>
+                    </div>
+                    <div id="top4-container" class="grid grid-cols-5 gap-2"></div>
+
                 </div>
 
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-xl font-bold text-gray-700">Routen-Übersicht</h2>
                     <div class="flex items-center space-x-4">
-                        <label class="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm">
-                            <input type="checkbox" id="show-all-checkbox" onchange="loadRoutesAndCatches()" class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
+                        <label
+                            class="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm">
+                            <input type="checkbox" id="show-all-checkbox" onchange="loadRoutesAndCatches()"
+                                class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
                             <span>Alle Routen anzeigen</span>
                         </label>
                     </div>
@@ -167,10 +231,14 @@
                     <div class="overflow-x-auto">
                         <table class="w-full text-left text-xs border-collapse">
                             <thead>
-                                <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wider font-semibold">
+                                <tr
+                                    class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wider font-semibold">
+
                                     <th class="py-3 px-4">Run</th>
+                                    <th class="py-3 px-4">Zeitraum</th>
                                     <th class="py-3 px-4">Status</th>
                                     <th class="py-3 px-4">Orden</th>
+                                    <th class="py-3 px-4">Top 4 & Champ</th>
                                     <th class="py-3 px-4">Encounter-Stats</th>
                                     <th class="py-3 px-4">Todesursachen (Schuld)</th>
                                 </tr>
@@ -191,19 +259,23 @@
                     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
                         <div>
                             <h2 class="text-lg font-bold text-gray-800">💡 Feature-Wünsche & Bug-Reports</h2>
-                            <p class="text-xs text-gray-500">Hier können Vorschläge, gewünschte Anpassungen und Fehler eingetragen werden.</p>
+                            <p class="text-xs text-gray-500">Hier können Vorschläge, gewünschte Anpassungen und Fehler
+                                eingetragen werden.</p>
                         </div>
-                        <div class="flex items-center space-x-3 self-stretch sm:self-auto justify-between sm:justify-end">
+                        <div
+                            class="flex items-center space-x-3 self-stretch sm:self-auto justify-between sm:justify-end">
                             <div class="flex items-center space-x-2">
                                 <label class="text-xs font-bold text-gray-500">Einstufung:</label>
-                                <select id="feedback-filter-type" onchange="loadFeedback()" class="text-xs bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                                <select id="feedback-filter-type" onchange="loadFeedback()"
+                                    class="text-xs bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
                                     <option value="ALL">Alle Anzeigen</option>
                                     <option value="Feature">Nur Features 💡</option>
                                     <option value="Bug">Nur Bugs 🐛</option>
                                     <option value="Sonstiges">Nur Sonstiges 📌</option>
                                 </select>
                             </div>
-                            <button onclick="openFeedbackModal()" class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-bold transition">
+                            <button onclick="openFeedbackModal()"
+                                class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-bold transition">
                                 + Eintrag erstellen
                             </button>
                         </div>
@@ -219,22 +291,26 @@
     </div>
 
     <!-- POKEMON MODAL -->
-    <div id="pokemon-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+    <div id="pokemon-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl p-6 w-full max-w-sm shadow-xl">
             <h3 id="modal-title" class="text-lg font-bold mb-4">Pokémon eintragen</h3>
             <form id="pokemon-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Pokémon Name</label>
-                    <input type="text" id="poke-name-input" list="pokemon-list" placeholder="z.B. Pikachu" required class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="poke-name-input" list="pokemon-list" placeholder="z.B. Pikachu" required
+                        class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
                     <datalist id="pokemon-list"></datalist>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Level</label>
-                    <input type="number" id="poke-level-input" value="1" min="1" max="100" class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="number" id="poke-level-input" value="1" min="1" max="100"
+                        class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700">Status</label>
-                    <select id="poke-status-input" onchange="toggleKillerSelect()" class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="poke-status-input" onchange="toggleKillerSelect()"
+                        class="mt-1 w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="ALIVE">ALIVE</option>
                         <option value="BOX">BOX</option>
                         <option value="DEAD">DEAD ☠️</option>
@@ -242,54 +318,99 @@
                     </select>
                 </div>
                 <div id="killer-container" class="hidden bg-red-50 p-3 rounded-lg border border-red-200">
-                    <label class="block text-xs font-bold text-red-700 uppercase mb-1">Wer ist schuld am Tod? (Soul Link Kettenreaktion)</label>
-                    <select id="poke-killer-input" class="w-full p-1.5 border border-red-300 rounded text-sm bg-white outline-none">
+                    <label class="block text-xs font-bold text-red-700 uppercase mb-1">Wer ist schuld am Tod? (Soul Link
+                        Kettenreaktion)</label>
+                    <select id="poke-killer-input"
+                        class="w-full p-1.5 border border-red-300 rounded text-sm bg-white outline-none">
                         <option value="">Bitte wählen...</option>
                     </select>
-                    <p class="text-xs text-red-600 mt-1">⚠️ Alle 3 verknüpften Pokémon auf dieser Route sterben dadurch automatisch!</p>
+                    <p class="text-xs text-red-600 mt-1">⚠️ Alle 3 verknüpften Pokémon auf dieser Route sterben dadurch
+                        automatisch!</p>
                 </div>
 
                 <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeModal()" class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
-                    <button type="submit" class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
+                    <button type="button" onclick="closeModal()"
+                        class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                    <button type="submit"
+                        class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
                 </div>
             </form>
         </div>
     </div>
+    <!-- RUN BEGINNEN MODAL-->
+
+    <div id="new-run-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
+            <h3 class="text-lg font-bold mb-4 text-gray-800">Neuen Run erstellen</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Run Nummer / Name</label>
+                    <input type="text" id="new-run-title-input"
+                        class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Startdatum (dd.MM.yy HH:mm)</label>
+                    <input type="text" id="new-run-startdate-input"
+                        class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
+                </div>
+                <div class="flex space-x-3 pt-2">
+                    <button type="button" onclick="closeNewRunModal()"
+                        class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                    <button type="button" onclick="submitNewRun()"
+                        class="w-1/2 bg-green-600 hover:bg-green-500 text-white p-2 rounded-lg font-semibold transition">Erstellen</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- RUN BEENDEN MODAL -->
-    <div id="finish-run-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+    <div id="finish-run-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
             <h3 class="text-lg font-bold mb-4 text-gray-800">Run beenden</h3>
             <form id="finish-run-form" class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Ergebnis</label>
-                    <select id="finish-outcome-input" required class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="finish-outcome-input" required
+                        class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="WIPE">Wipe ☠️ (Verloren)</option>
                         <option value="ERFOLGREICH">Erfolgreich 🏆 (CHAMPION)</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Grund / Anmerkung</label>
-                    <textarea id="finish-note-input" rows="3" placeholder="z.B. Eike verliert alle Pokémon gegen Rockos Onix..." class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+                    <textarea id="finish-note-input" rows="3"
+                        placeholder="z.B. Eike verliert alle Pokémon gegen Rockos Onix..."
+                        class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Enddatum (dd.MM.yy HH:mm)</label>
+                    <input type="text" id="finish-enddate-input" required
+                        class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm">
                 </div>
                 <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeFinishModal()" class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
-                    <button type="submit" class="w-1/2 bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg font-semibold transition">Run abschließen</button>
+                    <button type="button" onclick="closeFinishModal()"
+                        class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                    <button type="submit"
+                        class="w-1/2 bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg font-semibold transition">Run
+                        abschließen</button>
                 </div>
             </form>
         </div>
     </div>
 
     <!-- FEEDBACK MODAL (FEAT/BUG ERSTELLEN ODER EDITIEREN) -->
-    <div id="feedback-modal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
+    <div id="feedback-modal"
+        class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center p-4 z-50">
         <div class="bg-white rounded-xl p-6 w-full max-w-md shadow-xl">
             <h3 id="feedback-modal-title" class="text-lg font-bold mb-4 text-gray-800">Neuen Eintrag erstellen</h3>
             <form id="feedback-form" class="space-y-4">
                 <input type="hidden" id="feedback-id">
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Einstufung (Typ)</label>
-                    <select id="feedback-type" required class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="feedback-type" required
+                        class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500">
                         <option value="Feature">Feature-Wunsch 💡</option>
                         <option value="Bug">Bug-Report 🐛</option>
                         <option value="Sonstiges">Sonstiges 📌</option>
@@ -297,11 +418,41 @@
                 </div>
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
-                    <textarea id="feedback-description" rows="4" required placeholder="z.B. Elemente der Pokémon-Szenen in der Tabelle darstellen..." class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
+                    <textarea id="feedback-description" rows="4" required
+                        placeholder="z.B. Elemente der Pokémon-Szenen in der Tabelle darstellen..."
+                        class="w-full p-2 border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-blue-500 text-sm"></textarea>
                 </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                    <div class="flex flex-wrap gap-4 text-sm font-medium text-gray-700">
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="feedback-status" value="open" checked
+                                class="text-blue-600 focus:ring-blue-500">
+                            <span>Open</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="feedback-status" value="in progress"
+                                class="text-blue-600 focus:ring-blue-500">
+                            <span>In Progress</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="feedback-status" value="done"
+                                class="text-blue-600 focus:ring-blue-500">
+                            <span>Done</span>
+                        </label>
+                        <label class="flex items-center space-x-1.5 cursor-pointer">
+                            <input type="radio" name="feedback-status" value="rejected"
+                                class="text-blue-600 focus:ring-blue-500">
+                            <span>Rejected</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeFeedbackModal()" class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
-                    <button type="submit" class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
+                    <button type="button" onclick="closeFeedbackModal()"
+                        class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                    <button type="submit"
+                        class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
                 </div>
             </form>
         </div>
@@ -311,7 +462,8 @@
     <div id="gagModal" class="gag-overlay" style="display: none;">
         <div class="gag-card">
             <h2 class="text-xl font-bold mb-2">Willkommen an Bord! 🎮</h2>
-            <p class="text-sm text-gray-300">Bevor du die volle Entfaltung der App genießen darfst, wähle bitte, wer deiner Meinung nach der beste Pokémon-Trainer an Bord ist:</p>
+            <p class="text-sm text-gray-300">Bevor du die volle Entfaltung der App genießen darfst, wähle bitte, wer
+                deiner Meinung nach der beste Pokémon-Trainer an Bord ist:</p>
 
             <div class="gag-options">
                 <label><input type="radio" name="trainer" value="Higa"> Higa</label>
@@ -329,42 +481,51 @@
     <script>
         const SUPABASE_URL = "https://wdbchzulchoxpoierbmi.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndkYmNoenVsY2hveHBvaWVyYm1pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUzMjAyNDksImV4cCI6MjEwMDg5NjI0OX0.ERLM8kNAaBIEhshxfFKlDU1JxuG1UezoYD0bd-K1k70";
-        
+
         const { createClient } = supabase;
         const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const PLAYERS = ["Higa", "Eike", "Ruffy"];
         const KANTO_ROUTES = [
-            "Alabastia/ Starter", "Alabastia", "Route 1", "Vertania City", "Route 22", 
-            "Route 2", "Vertania-Wald", "Karpador Buy", "Route 3", "Route 4", 
-            "Mondberg", "Azuria City", "Route 24", "Route 25", "Route 5", 
-            "Route 6", "Orania City", "Route 11", "Ms Anne", "Digdas Höhle", 
-            "Route 9", "Route 10", "Felstunnel", "Route 8", "Route 7", 
-            "Prismania City", "Pokémon-Turm (Lavandia)", "Route 16", "Route 17 (Radweg)", "Route 18", 
-            "Fuchsania City", "Safari-Zone", "Route 12", "Route 13", "Route 14", 
-            "Route 15", "Kraftwerk", "Route 19", "Route 20", "Seeschauminseln", 
-            "Zinnoberinsel", "Pokémon-Villa", "Eiland Eins (Schatzstrand/Glutherme)", "Glutberg", "Eiland Zwei (Kap Kante)", 
-            "Eiland Drei (Bundbrücke)", "Beerenforst", "Route 21", "Route 23", "Siegesstraße", 
+            "Alabastia/ Starter", "Route 1", "Route 22",
+            "Route 2", "Vertania-Wald", "Karpador Buy", "Route 3", "Route 4",
+            "Mondberg", "Azuria City", "Route 24", "Route 25", "Route 5",
+            "Route 6", "Orania City", "Route 11", "Alabastia", "Vertania City", "Ms Anne", "Digdas Höhle",
+            "Route 9", "Route 10", "Felstunnel", "Route 8", "Route 7",
+            "Prismania City", "Pokémon-Turm (Lavandia)", "Route 16", "Route 17 (Radweg)", "Route 18",
+            "Fuchsania City", "Safari-Zone", "Route 12", "Route 13", "Route 14",
+            "Route 15", "Kraftwerk", "Route 19", "Route 20", "Seeschauminseln",
+            "Zinnoberinsel", "Pokémon-Villa", "Eiland Eins (Schatzstrand/Glutherme)", "Glutberg", "Eiland Zwei (Kap Kante)",
+            "Eiland Drei (Bundbrücke)", "Beerenforst", "Route 21", "Route 23", "Siegesstraße",
             "Eiland Vier (Eiskaskadenhöhle)", "Eiland Fünf (Verlorene Höhle/Weide)", "Eiland Sechs (Musterbusch/Ruintal)", "Eiland Sieben (Schlucht/Tanoby-Ruinen)", "Geheimdungeon (Azuria-Höhle)"
         ];
         const KANTO_BADGES = [
-            { id: 1, name: "Felsorden", leader: "Rocko", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><polygon points="10,2 22,2 30,10 30,22 22,30 10,30 2,22 2,10" fill="#9CA3AF" stroke="#4B5563" stroke-width="2"/><polygon points="12,6 20,6 26,12 26,20 20,26 12,26 6,20 6,12" fill="#D1D5DB"/></svg>` },
-            { id: 2, name: "Quellorden", leader: "Misty", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 C16 2 5 14 5 21 A11 11 0 0 0 27 21 C27 14 16 2 16 2 Z" fill="#38BDF8" stroke="#0284C7" stroke-width="2"/><path d="M16 7 C16 7 9 16 9 20 A7 7 0 0 0 23 20 C23 16 16 7 16 7 Z" fill="#7DD3FC"/></svg>` },
-            { id: 3, name: "Donnerorden", leader: "Major Bob", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L19 10 L28 8 L22 15 L29 22 L20 21 L19 30 L14 22 L6 26 L10 18 L3 12 L12 12 Z" fill="#FACC15" stroke="#CA8A04" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="#F97316" stroke="#C2410C" stroke-width="1"/></svg>` },
-            { id: 4, name: "Farborden", leader: "Erika", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><circle cx="16" cy="7" r="5" fill="#EF4444"/><circle cx="25" cy="13" r="5" fill="#3B82F6"/><circle cx="22" cy="23" r="5" fill="#22C55E"/><circle cx="10" cy="23" r="5" fill="#EAB308"/><circle cx="7" cy="13" r="5" fill="#A855F7"/><circle cx="16" cy="16" r="6" fill="#FDE047" stroke="#CA8A04" stroke-width="1.5"/></svg>` },
-            { id: 5, name: "Seelenorden", leader: "Koga", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 29 C16 29 3 20 3 11 A7 7 0 0 1 16 5 A7 7 0 0 1 29 11 C29 20 16 29 16 29 Z" fill="#C084FC" stroke="#7E22CE" stroke-width="2"/><path d="M16 23 C16 23 7 16 7 11 A4.5 4.5 0 0 1 16 7 A4.5 4.5 0 0 1 25 11 C25 16 16 23 16 23 Z" fill="#E9D5FF"/></svg>` },
-            { id: 6, name: "Sumpforden", leader: "Sabrina", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><circle cx="16" cy="16" r="13" fill="#F59E0B" stroke="#B45309" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="#FCD34D" stroke="#B45309" stroke-width="1.5"/><circle cx="16" cy="16" r="4" fill="#78350F"/></svg>` },
-            { id: 7, name: "Vulkanorden", leader: "Pyro", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L29 16 L16 30 L3 16 Z" fill="#EF4444" stroke="#991B1B" stroke-width="2"/><path d="M16 7 L23 16 L16 25 L9 16 Z" fill="#F97316"/><path d="M16 11 L19 16 L16 21 L13 16 Z" fill="#FDE047"/></svg>` },
-            { id: 8, name: "Erdorden", leader: "Giovanni", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 C8 8 5 18 5 28 L16 31 L27 28 C27 18 24 8 16 2 Z" fill="#15803D" stroke="#166534" stroke-width="2"/><path d="M16 6 C11 11 9 18 9 25 L16 26 L23 25 C23 18 21 11 16 6 Z" fill="#22C55E"/><line x1="16" y1="6" x2="16" y2="26" stroke="#15803D" stroke-width="2"/></svg>` }
+            { id: 1, name: "Felsorden", leader: "Rocko", levels: "14 / 12", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><polygon points="10,2 22,2 30,10 30,22 22,30 10,30 2,22 2,10" fill="#9CA3AF" stroke="#4B5563" stroke-width="2"/><polygon points="12,6 20,6 26,12 26,20 20,26 12,26 6,20 6,12" fill="#D1D5DB"/></svg>` },
+            { id: 2, name: "Quellorden", leader: "Misty", levels: "21 / 18", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 C16 2 5 14 5 21 A11 11 0 0 0 27 21 C27 14 16 2 16 2 Z" fill="#38BDF8" stroke="#0284C7" stroke-width="2"/><path d="M16 7 C16 7 9 16 9 20 A7 7 0 0 0 23 20 C23 16 16 7 16 7 Z" fill="#7DD3FC"/></svg>` },
+            { id: 3, name: "Donnerorden", leader: "Major Bob", levels: "24 / 21", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L19 10 L28 8 L22 15 L29 22 L20 21 L19 30 L14 22 L6 26 L10 18 L3 12 L12 12 Z" fill="#FACC15" stroke="#CA8A04" stroke-width="1.5"/><circle cx="16" cy="16" r="5" fill="#F97316" stroke="#C2410C" stroke-width="1"/></svg>` },
+            { id: 4, name: "Farborden", leader: "Erika", levels: "29 / 29", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><circle cx="16" cy="7" r="5" fill="#EF4444"/><circle cx="25" cy="13" r="5" fill="#3B82F6"/><circle cx="22" cy="23" r="5" fill="#22C55E"/><circle cx="10" cy="23" r="5" fill="#EAB308"/><circle cx="7" cy="13" r="5" fill="#A855F7"/><circle cx="16" cy="16" r="6" fill="#FDE047" stroke="#CA8A04" stroke-width="1.5"/></svg>` },
+            { id: 5, name: "Seelenorden", leader: "Koga", levels: "43 / 39", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 29 C16 29 3 20 3 11 A7 7 0 0 1 16 5 A7 7 0 0 1 29 11 C29 20 16 29 16 29 Z" fill="#C084FC" stroke="#7E22CE" stroke-width="2"/><path d="M16 23 C16 23 7 16 7 11 A4.5 4.5 0 0 1 16 7 A4.5 4.5 0 0 1 25 11 C25 16 16 23 16 23 Z" fill="#E9D5FF"/></svg>` },
+            { id: 6, name: "Sumpforden", leader: "Sabrina", levels: "43 / 38", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><circle cx="16" cy="16" r="13" fill="#F59E0B" stroke="#B45309" stroke-width="2"/><circle cx="16" cy="16" r="8" fill="#FCD34D" stroke="#B45309" stroke-width="1.5"/><circle cx="16" cy="16" r="4" fill="#78350F"/></svg>` },
+            { id: 7, name: "Vulkanorden", leader: "Pyro", levels: "47 / 42", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L29 16 L16 30 L3 16 Z" fill="#EF4444" stroke="#991B1B" stroke-width="2"/><path d="M16 7 L23 16 L16 25 L9 16 Z" fill="#F97316"/><path d="M16 11 L19 16 L16 21 L13 16 Z" fill="#FDE047"/></svg>` },
+            { id: 8, name: "Erdorden", leader: "Giovanni", levels: "50 / 45", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 C8 8 5 18 5 28 L16 31 L27 28 C27 18 24 8 16 2 Z" fill="#15803D" stroke="#166534" stroke-width="2"/><path d="M16 6 C11 11 9 18 9 25 L16 26 L23 25 C23 18 21 11 16 6 Z" fill="#22C55E"/><line x1="16" y1="6" x2="16" y2="26" stroke="#15803D" stroke-width="2"/></svg>` }
+        ];
+        const KANTO_TOP4 = [
+            { id: 1, name: "Top 4 #1", leader: "Lorelei", levels: "54 / 52", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L20 12 L30 16 L20 20 L16 30 L12 20 L2 16 L12 12 Z" fill="#38BDF8" stroke="#0284C7" stroke-width="1.5"/></svg>` },
+            { id: 2, name: "Top 4 #2", leader: "Bruno", levels: "56 / 53", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M8 8 L24 24 M24 8 L8 24" stroke="#EF4444" stroke-width="4" stroke-linecap="round"/><circle cx="16" cy="16" r="5" fill="#DC2626"/></svg>` },
+            { id: 3, name: "Top 4 #3", leader: "Agathe", levels: "58 / 56", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 4 C10 4 6 9 6 15 C6 22 12 28 16 28 C20 28 26 22 26 15 C26 9 22 4 16 4 Z" fill="#A855F7" stroke="#7E22CE" stroke-width="2"/><circle cx="12" cy="13" r="2" fill="#FFF"/><circle cx="20" cy="13" r="2" fill="#FFF"/></svg>` },
+            { id: 4, name: "Top 4 #4", leader: "Siegfried", levels: "60 / 58", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 L22 10 L30 12 L24 18 L26 28 L16 22 L6 28 L8 18 L2 12 L10 10 Z" fill="#F97316" stroke="#C2410C" stroke-width="1.5"/></svg>` },
+            { id: 5, name: "Champ", leader: "Rivale", levels: "63 / 61", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M6 10 L16 4 L26 10 L26 22 L16 28 L6 22 Z" fill="#EAB308" stroke="#CA8A04" stroke-width="2"/><circle cx="16" cy="16" r="4" fill="#FEF08A"/></svg>` }
         ];
 
         let currentRunBadges = [];
+        let currentRunTop4 = [];
         let allPokemonNames = [];
         let currentRunId = null;
         let activeRoute = null;
         let activePlayer = null;
         let currentRunData = null;
         let currentUserEmail = null;
+        let currentUserName = null;
         let gagStep = 1;
 
         window.addEventListener('DOMContentLoaded', async () => {
@@ -375,7 +536,7 @@
                 e.preventDefault();
                 const email = document.getElementById('email').value;
                 const password = document.getElementById('password').value;
-                
+
                 const { data, error } = await _supabase.auth.signInWithPassword({ email, password });
                 if (error) {
                     document.getElementById('login-error').classList.remove('hidden');
@@ -393,16 +554,23 @@
                 e.preventDefault();
                 const outcome = document.getElementById('finish-outcome-input').value;
                 const note = document.getElementById('finish-note-input').value.trim();
+                const rawEndDate = document.getElementById('finish-enddate-input').value.trim();
+
+                // Datum ins ISO-Format konvertieren
+                const isoEndDate = parseGermanDateToISO(rawEndDate);
 
                 const { error } = await _supabase.from('runs').update({
                     is_finished: true,
                     outcome: outcome,
-                    finish_note: note
+                    finish_note: note,
+                    enddate: isoEndDate
                 }).eq('id', currentRunId);
 
                 if (!error) {
                     closeFinishModal();
                     await loadRuns();
+                } else {
+                    alert("Fehler beim Beenden des Runs: " + error.message);
                 }
             });
 
@@ -419,58 +587,61 @@
             }
         }
 
-async function processGagSelection() {
-    const selectedOption = document.querySelector('input[name="trainer"]:checked');
-    
-    if (!selectedOption) {
-        alert('Bitte wähle eine Option aus!');
-        return;
-    }
+        async function processGagSelection() {
+            const selectedOption = document.querySelector('input[name="trainer"]:checked');
 
-    const msgDiv = document.getElementById('gagMessage');
-    const btn = document.getElementById('gagBtn');
+            if (!selectedOption) {
+                alert('Bitte wähle eine Option aus!');
+                return;
+            }
 
-    if (gagStep === 1) {
-        document.querySelectorAll('input[name="trainer"]').forEach(r => r.checked = false);
-        document.querySelector('input[name="trainer"][value="Higa"]').checked = true;
+            const msgDiv = document.getElementById('gagMessage');
+            const btn = document.getElementById('gagBtn');
 
-        msgDiv.innerText = "Ich entscheide mich für Higa.";
-        msgDiv.style.display = 'block';
+            if (gagStep === 1) {
+                document.querySelectorAll('input[name="trainer"]').forEach(r => r.checked = false);
+                document.querySelector('input[name="trainer"][value="Higa"]').checked = true;
 
-        btn.innerText = "Bestätigen & Weiter";
-        gagStep = 2;
-    } else if (gagStep === 2) {
-        btn.disabled = true;
-        btn.innerText = "Speichern...";
+                msgDiv.innerText = "Ich entscheide mich für Higa.";
+                msgDiv.style.display = 'block';
 
-        // 1. Token vor dem Request aktualisieren
-        const { data: refreshData, error: refreshError } = await _supabase.auth.refreshSession();
+                btn.innerText = "Bestätigen & Weiter";
+                gagStep = 2;
+            } else if (gagStep === 2) {
+                btn.disabled = true;
+                btn.innerText = "Speichern...";
 
-        if (refreshError || !refreshData.session) {
-            // Keine gültige Session mehr vorhanden -> Abmelden
-            document.getElementById('gagModal').style.display = 'none';
-            logout();
-            return;
+                // Session vor dem API-Call prüfen
+                const { data: { session } } = await _supabase.auth.getSession();
+
+                if (!session) {
+                    alert("Sitzung abgelaufen. Bitte melde dich erneut an.");
+                    document.getElementById('gagModal').style.display = 'none';
+                    logout();
+                    return;
+                }
+
+                const { data, error } = await _supabase.auth.updateUser({
+                    data: { has_seen_gag: true }
+                });
+
+                if (error) {
+                    alert("Fehler beim Speichern: " + error.message);
+                    btn.disabled = false;
+                    btn.innerText = "Bestätigen & Weiter";
+                    return;
+                }
+
+                document.getElementById('gagModal').style.display = 'none';
+            }
         }
-
-        // 2. Versuch, das Flag 'has_seen_gag' in den User-Metadaten zu speichern
-        const { error: updateError } = await _supabase.auth.updateUser({
-            data: { has_seen_gag: true }
-        });
-
-        if (updateError) {
-            // Fehler nur loggen, Nutzer aber nicht blockieren
-            console.warn("Gag-Status konnte nicht in Supabase gespeichert werden:", updateError.message);
-        }
-
-        // 3. Modal IMMER schließen, damit der Nutzer die App nutzen kann
-        document.getElementById('gagModal').style.display = 'none';
-    }
-}
         async function checkAuth() {
             const { data: { session } } = await _supabase.auth.getSession();
             if (session) {
                 currentUserEmail = session.user.email;
+                currentUserName = session.user.user_metadata?.display_name
+                    || session.user.email.split('@')[0].split('-')[0];
+
                 document.getElementById('login-screen').classList.add('hidden');
                 document.getElementById('app-screen').classList.remove('hidden');
                 checkFirstLogin(session.user);
@@ -521,14 +692,11 @@ async function processGagSelection() {
         /* --- FEEDBACK TAB LOGIK (INKL. EINSTUFUNGS-FILTER) --- */
         async function loadFeedback() {
             const container = document.getElementById('feedback-list-container');
-            const filterType = document.getElementById('feedback-filter-type')?.value || 'ALL';
+            const filterType = document.getElementById('feedback-filter-type').value;
 
-            if (!container) return;
             container.innerHTML = '<p class="text-gray-400 text-sm">Lade Einträge...</p>';
 
-            let query = _supabase.from('feedbacks').select('*').order('created_at', { ascending: false });
-
-            // Falls gefiltert werden soll (Feature / Bug / Sonstiges)
+            let query = _supabase.from('feedbacks').select('*');
             if (filterType !== 'ALL') {
                 query = query.eq('type', filterType);
             }
@@ -545,51 +713,97 @@ async function processGagSelection() {
                 return;
             }
 
+            // Sortierung: in progress -> open -> done -> rejected
+            const statusOrder = {
+                'in progress': 1,
+                'open': 2,
+                'done': 3,
+                'rejected': 4
+            };
+
+            data.sort((a, b) => {
+                const statusA = (a.status || 'open').toLowerCase();
+                const statusB = (b.status || 'open').toLowerCase();
+
+                const orderA = statusOrder[statusA] || 99;
+                const orderB = statusOrder[statusB] || 99;
+
+                return orderA - orderB;
+            });
+
             container.innerHTML = data.map(item => {
                 const dateObj = new Date(item.created_at);
-                const dateStr = dateObj.toLocaleDateString('de-DE', {
-                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                });
+                const dateStr = dateObj.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 
+                // Typ-Badge Farben
                 let badgeColor = 'bg-blue-100 text-blue-800 border-blue-200';
-                let icon = '💡';
-                if (item.type === 'Bug') {
-                    badgeColor = 'bg-red-100 text-red-800 border-red-200';
-                    icon = '🐛';
-                } else if (item.type === 'Sonstiges') {
-                    badgeColor = 'bg-gray-100 text-gray-800 border-gray-300';
-                    icon = '📌';
+                if (item.type === 'Bug') badgeColor = 'bg-red-100 text-red-800 border-red-200';
+                if (item.type === 'Sonstiges') badgeColor = 'bg-purple-100 text-purple-800 border-purple-200';
+
+                // Status-Badge & Layout Farben definieren
+                const rawStatus = (item.status || 'open').toLowerCase();
+                let statusBg = '';
+                let statusLabel = '';
+                let leftBorderClass = '';
+                let descriptionClass = 'text-sm text-gray-700 whitespace-pre-wrap';
+
+                if (rawStatus === 'in progress') {
+                    statusBg = 'bg-amber-100 text-amber-800 border-amber-300';
+                    statusLabel = '⏳ In Progress';
+                    leftBorderClass = 'border-l-4 border-amber-500 bg-amber-50/30';
+                } else if (rawStatus === 'done') {
+                    statusBg = 'bg-green-100 text-green-800 border-green-300';
+                    statusLabel = '✅ Done';
+                    leftBorderClass = 'border-l-4 border-green-500 bg-green-50/30';
+                } else if (rawStatus === 'rejected') {
+                    statusBg = 'bg-red-100 text-red-800 border-red-300';
+                    statusLabel = '❌ Rejected';
+                    leftBorderClass = 'border-l-4 border-gray-400 bg-gray-50 opacity-70';
+                    descriptionClass = 'text-sm text-gray-400 line-through whitespace-pre-wrap';
+                } else {
+                    // Open
+                    statusBg = 'bg-blue-100 text-blue-800 border-blue-300';
+                    statusLabel = '📌 Open';
+                    leftBorderClass = 'border-l-4 border-blue-500 bg-blue-50/30';
                 }
 
-                const safeDesc = escapeHtml(item.description);
+                // Escape helper für onclick-Attribute
+                const safeDesc = item.description.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
+                const ownerName = item.owner || 'Unbekannt';
 
                 return `
-                    <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                    <div class="bg-white border border-gray-200 rounded-xl p-4 ${leftBorderClass} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
                         <div class="space-y-1.5 flex-1">
-                            <div class="flex items-center gap-2 flex-wrap">
-                                <span class="text-xs font-extrabold px-2.5 py-0.5 rounded border ${badgeColor}">${icon} ${item.type}</span>
-                                <span class="text-xs text-gray-400">📅 ${dateStr}</span>
-                                <span class="text-xs text-gray-500">von <b>${item.user_email}</b></span>
+                            <div class="flex items-center space-x-2 flex-wrap gap-y-1">
+                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}">${item.type}</span>
+                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${statusBg}">${statusLabel}</span>
+                                <span class="text-[11px] text-gray-500 font-semibold flex items-center gap-1 ml-1">👤 ${ownerName}</span>
+                                <span class="text-xs text-gray-400 ml-1">• ${dateStr}</span>
                             </div>
-                            <p class="text-gray-800 text-sm whitespace-pre-line font-medium leading-relaxed">${safeDesc}</p>
+                            <p class="${descriptionClass}">${item.description}</p>
                         </div>
-                        <div class="flex items-center space-x-2 shrink-0 self-end md:self-center">
-                            <button onclick="openFeedbackModal('${item.id}', '${item.type}', \`${safeDesc}\`)" class="text-xs bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded font-semibold transition">
-                                ✏️ Bearbeiten
-                            </button>
-                            <button onclick="deleteFeedback('${item.id}')" class="text-xs bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-3 py-1.5 rounded font-semibold transition">
-                                🗑️ Löschen
-                            </button>
-                        </div>
+                        <button onclick="openFeedbackModal('${item.id}', '${item.type}', '${safeDesc}', '${rawStatus}')"
+                            class="text-xs bg-white border border-gray-300 hover:bg-gray-100 px-3 py-1.5 rounded-lg font-semibold transition text-gray-700 self-end sm:self-center">
+                            ✏️ Bearbeiten
+                        </button>
                     </div>
                 `;
             }).join('');
         }
 
-        function openFeedbackModal(id = null, type = 'Feature', description = '') {
-            document.getElementById('feedback-id').value = id || '';
+        function openFeedbackModal(id = '', type = 'Feature', description = '', status = 'open') {
+            document.getElementById('feedback-id').value = id;
             document.getElementById('feedback-type').value = type;
             document.getElementById('feedback-description').value = description;
+
+            // Richtigen Radiobutton basierend auf dem übergebenen Status (oder Default 'open') auswählen
+            const statusVal = status ? status.toLowerCase() : 'open';
+            const radioToSelect = document.querySelector(`input[name="feedback-status"][value="${statusVal}"]`);
+            if (radioToSelect) {
+                radioToSelect.checked = true;
+            } else {
+                document.querySelector('input[name="feedback-status"][value="open"]').checked = true;
+            }
 
             document.getElementById('feedback-modal-title').textContent = id ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen';
             document.getElementById('feedback-modal').classList.remove('hidden');
@@ -604,27 +818,40 @@ async function processGagSelection() {
             const type = document.getElementById('feedback-type').value;
             const description = document.getElementById('feedback-description').value.trim();
 
+            // Status per Radiobutton auslesen
+            const selectedStatusRadio = document.querySelector('input[name="feedback-status"]:checked');
+            const status = selectedStatusRadio ? selectedStatusRadio.value : 'open';
+
             if (!description) return;
 
+            let error = null;
+
             if (id) {
-                const { error } = await _supabase.from('feedbacks').update({
+                // Update
+                const res = await _supabase.from('feedbacks').update({
                     type: type,
-                    description: description
+                    description: description,
+                    status: status
                 }).eq('id', id);
-
-                if (error) alert("Fehler beim Aktualisieren: " + error.message);
+                error = res.error;
             } else {
-                const { error } = await _supabase.from('feedbacks').insert([{
-                    user_email: currentUserEmail || 'Unbekannt',
+                // Insert
+                const res = await _supabase.from('feedbacks').insert([{
                     type: type,
-                    description: description
+                    description: description,
+                    status: status,
+                    owner: currentUserName
                 }]);
-
-                if (error) alert("Fehler beim Erstellen: " + error.message);
+                error = res.error;
             }
 
-            closeFeedbackModal();
-            loadFeedback();
+            if (!error) {
+                closeFeedbackModal();
+                loadFeedback();
+            } else {
+                console.error("Fehler beim Speichern des Feedbacks:", error);
+                alert("Fehler beim Speichern des Eintrags.");
+            }
         }
 
         async function deleteFeedback(id) {
@@ -641,17 +868,19 @@ async function processGagSelection() {
         function escapeHtml(text) {
             if (!text) return '';
             return text.replace(/&/g, "&amp;")
-                       .replace(/</g, "&lt;")
-                       .replace(/>/g, "&gt;")
-                       .replace(/"/g, "&quot;")
-                       .replace(/'/g, "&#039;");
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
         }
 
+        /* --- RUN HISTORIE & DASHBOARD LOGIK --- */
         /* --- RUN HISTORIE & DASHBOARD LOGIK --- */
         async function loadAndRenderHistory() {
             const tbody = document.getElementById('runs-overview-table-body');
             if (!tbody) return;
-            tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-400">Lade Daten...</td></tr>';
+            // UPDATE: colspan="7"
+            tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-400">Lade Daten...</td></tr>';
 
             try {
                 const [{ data: runs }, { data: catches }] = await Promise.all([
@@ -660,11 +889,12 @@ async function processGagSelection() {
                 ]);
 
                 if (!runs || runs.length === 0) {
-                    tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-gray-400">Keine Runs gefunden.</td></tr>';
+                    // UPDATE: colspan="7"
+                    tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-400">Keine Runs gefunden.</td></tr>';
                     return;
                 }
 
-                runs.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { numeric: true, sensitivity: 'base' }));
+                runs.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? ''), undefined, { numeric: true, sensitivity: 'base' }));
 
                 tbody.innerHTML = runs.map(run => {
                     const runCatches = (catches || []).filter(c => c.run_id === run.id);
@@ -684,11 +914,11 @@ async function processGagSelection() {
                     });
 
                     const playerDeathsHtml = PLAYERS.map(player => `
-                        <span class="inline-flex items-center gap-1 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-[11px]">
-                            <span class="font-bold text-gray-700">${player}:</span>
-                            <span class="font-extrabold text-red-700">${deathCounts[player] || 0} ☠️</span>
-                        </span>
-                    `).join(' ');
+                <span class="inline-flex items-center gap-1 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-[11px]">
+                    <span class="font-bold text-gray-700">${player}:</span>
+                    <span class="font-extrabold text-red-700">${deathCounts[player] || 0} ☠️</span>
+                </span>
+            `).join(' ');
 
                     let statusBadge = `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Laufend 🎮</span>`;
                     if (run.is_finished) {
@@ -697,50 +927,79 @@ async function processGagSelection() {
                             : `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Wipe ☠️</span>`;
                     }
 
+                    // Orden Badges rendern
                     const runBadges = run.badges || [];
                     const badgesHtml = KANTO_BADGES.map(badge => {
                         const hasBadge = runBadges.includes(badge.id);
                         return `<div class="inline-block ${hasBadge ? 'opacity-100' : 'opacity-20 grayscale'}" title="${badge.name}">${badge.svg}</div>`;
                     }).join('');
 
+                    // Top 4 & Champ Badges rendern
+                    const runTop4 = run.top4_badges || [];
+                    const top4Html = KANTO_TOP4.map(member => {
+                        const hasTop4 = runTop4.includes(member.id);
+                        return `<div class="inline-block ${hasTop4 ? 'opacity-100' : 'opacity-20 grayscale'}" title="${member.name}">${member.svg}</div>`;
+                    }).join('');
+
+                    // NEU: Zeitraum Text generieren
+                    const zeitraumText = `${formatDateToGerman(run.startdate)} - ${run.enddate ? formatDateToGerman(run.enddate) : 'läuft...'}`;
+
                     return `
-                        <tr class="hover:bg-gray-50 transition border-b border-gray-100">
-                            <td class="py-3 px-4 font-bold text-gray-900">${run.title}</td>
-                            <td class="py-3 px-4">${statusBadge}</td>
-                            <td class="py-3 px-4">
-                                <div class="flex items-center gap-1">
-                                    ${badgesHtml}
-                                    <span class="ml-1 text-[11px] font-extrabold text-gray-500">(${runBadges.length}/8)</span>
-                                </div>
-                            </td>
-                            <td class="py-3 px-4">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Encounters">E: ${encounterCount}</span>
-                                    <span class="bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Alive / Box">A: ${aliveCount}</span>
-                                    <span class="bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Dead">D: ${deadCount}</span>
-                                    <span class="bg-gray-100 text-gray-600 border border-gray-300 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Failed">F: ${failedCount}</span>
-                                </div>
-                            </td>
-                            <td class="py-3 px-4">
-                                <div class="flex items-center gap-1 flex-wrap">
-                                    ${playerDeathsHtml}
-                                </div>
-                            </td>
-                        </tr>
-                    `;
+                <tr class="hover:bg-gray-50 transition border-b border-gray-100">
+                    <td class="py-3 px-4 font-bold text-gray-900">${run.title}</td>
+                    <td class="py-3 px-4 text-gray-600 font-medium">${zeitraumText}</td>
+                    <td class="py-3 px-4">${statusBadge}</td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-1">
+                            ${badgesHtml}
+                            <span class="ml-1 text-[11px] font-extrabold text-gray-500">(${runBadges.length}/8)</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-1">
+                            ${top4Html}
+                            <span class="ml-1 text-[11px] font-extrabold text-gray-500">(${runTop4.length}/5)</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-1.5">
+                            <span class="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Encounters">E: ${encounterCount}</span>
+                            <span class="bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Alive / Box">A: ${aliveCount}</span>
+                            <span class="bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Dead">D: ${deadCount}</span>
+                            <span class="bg-gray-100 text-gray-600 border border-gray-300 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Failed">F: ${failedCount}</span>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4">
+                        <div class="flex items-center gap-1 flex-wrap">
+                            ${playerDeathsHtml}
+                        </div>
+                    </td>
+                </tr>
+            `;
                 }).join('');
 
             } catch (err) {
                 console.error("Fehler beim Laden der Historie:", err);
-                tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-red-500">Fehler beim Laden der Historie.</td></tr>';
+                // UPDATE: colspan="7"
+                tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-red-500">Fehler beim Laden der Historie.</td></tr>';
             }
+        }
+
+        function getCurrentFormattedDateTime() {
+            const now = new Date();
+            const day = String(now.getDate()).padStart(2, '0');
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const year = String(now.getFullYear()).slice(-2);
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`; // Tag zuerst (dd.MM.yy)
         }
 
         async function loadPokemonListForAutofill() {
             try {
                 const res = window.fetch ? await fetch('https://pokeapi.co/api/v2/pokemon?limit=1000') : null;
                 const data = await res.json();
-                
+
                 const germanNamesPromises = data.results.map(async (p, index) => {
                     const speciesRes = await fetch(`https://pokeapi.co/api/v2/pokemon-species/${index + 1}`);
                     const speciesData = await speciesRes.json();
@@ -760,7 +1019,7 @@ async function processGagSelection() {
             const { data, error } = await _supabase.from('runs').select('*').order('created_at', { ascending: false });
             const select = document.getElementById('run-select');
             select.innerHTML = '';
-            
+
             if (data && data.length > 0) {
                 data.forEach(run => {
                     const opt = document.createElement('option');
@@ -769,15 +1028,19 @@ async function processGagSelection() {
                     opt.textContent = `${run.title}${statusTag}`;
                     select.appendChild(opt);
                 });
-                currentRunId = data[0].id;
+
+                // Aktiven Run bestimmen
+                if (!currentRunId || !data.some(r => r.id === currentRunId)) {
+                    currentRunId = data[0].id;
+                }
                 select.value = currentRunId;
-                
+
                 select.onchange = (e) => {
                     currentRunId = e.target.value;
                     loadRoutesAndCatches();
                 };
 
-                loadRoutesAndCatches();
+                await loadRoutesAndCatches();
             } else {
                 await createNewRun();
             }
@@ -795,11 +1058,15 @@ async function processGagSelection() {
                 }
             }
 
-            const title = prompt("Name oder Nummer des neuen Runs:", nextDefaultName);
-            if (!title || !title.trim()) return;
 
             const { data, error } = await _supabase.from('runs').insert([{ title: title.trim() }]).select();
             if (!error && data) {
+
+                currentRunBadges = [];
+                currentRunTop4 = [];
+                renderBadges();
+                renderTop4();
+
                 loadRuns();
             }
         }
@@ -810,12 +1077,14 @@ async function processGagSelection() {
             const { data: runData } = await _supabase.from('runs').select('*').eq('id', currentRunId).single();
             currentRunData = runData || {};
             currentRunBadges = (runData && runData.badges) ? runData.badges : [];
-            
+            currentRunTop4 = (runData && runData.top4_badges) ? runData.top4_badges : [];
+
             updateRunLockState();
             renderBadges();
+            renderTop4();
 
             const { data: catches, error } = await _supabase.from('catches').select('*').eq('run_id', currentRunId);
-            
+
             const routesMap = {};
             KANTO_ROUTES.forEach(r => routesMap[r] = {});
 
@@ -847,18 +1116,17 @@ async function processGagSelection() {
                 if (!isFinished) {
                     badgeCard.onclick = () => toggleBadge(badge.id);
                 }
-                badgeCard.className = `flex flex-col items-center p-2 rounded-lg border transition-all duration-200 ${
-                    isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
-                } ${
-                    isUnlocked 
-                        ? 'bg-amber-50 border-amber-300 shadow-sm scale-105' 
+                badgeCard.className = `flex flex-col items-center p-2 rounded-lg border transition-all duration-200 ${isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
+                    } ${isUnlocked
+                        ? 'bg-amber-50 border-amber-300 shadow-sm scale-105'
                         : 'bg-gray-50 border-gray-200 opacity-40 grayscale hover:opacity-70'
-                }`;
+                    }`;
 
                 badgeCard.innerHTML = `
                     <div class="mb-1">${badge.svg}</div>
                     <span class="text-[10px] font-bold ${isUnlocked ? 'text-amber-900' : 'text-gray-500'}">${badge.name}</span>
                     <span class="text-[8px] text-gray-400">${badge.leader}</span>
+                    <span class="text-[9px] font-extrabold text-blue-600 mt-0.5">${badge.levels}</span>
                 `;
 
                 container.appendChild(badgeCard);
@@ -876,10 +1144,9 @@ async function processGagSelection() {
 
                 const badgeEl = document.getElementById('banner-outcome-badge');
                 badgeEl.textContent = currentRunData.outcome;
-                badgeEl.className = `px-2.5 py-1 rounded-full text-xs font-extrabold uppercase ${
-                    currentRunData.outcome === 'WIPE' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'
-                }`;
-                
+                badgeEl.className = `px-2.5 py-1 rounded-full text-xs font-extrabold uppercase ${currentRunData.outcome === 'WIPE' ? 'bg-red-200 text-red-800' : 'bg-green-200 text-green-800'
+                    }`;
+
                 document.getElementById('banner-note').textContent = currentRunData.finish_note ? `"${currentRunData.finish_note}"` : '';
             } else {
                 banner.classList.add('hidden');
@@ -902,10 +1169,61 @@ async function processGagSelection() {
             await _supabase.from('runs').update({ badges: currentRunBadges }).eq('id', currentRunId);
         }
 
+        function renderTop4() {
+            const container = document.getElementById('top4-container');
+            const countEl = document.getElementById('top4-count');
+            if (!container) return;
+
+            container.innerHTML = '';
+            if (countEl) countEl.textContent = `${currentRunTop4.length} / 5`;
+
+            const isFinished = currentRunData && currentRunData.is_finished;
+
+            KANTO_TOP4.forEach(member => {
+                const isUnlocked = currentRunTop4.includes(member.id);
+
+                const badgeCard = document.createElement('button');
+                if (!isFinished) {
+                    badgeCard.onclick = () => toggleTop4(member.id);
+                }
+                badgeCard.className = `flex flex-col items-center p-2 rounded-lg border transition-all duration-200 ${isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
+                    } ${isUnlocked
+                        ? 'bg-purple-50 border-purple-300 shadow-sm scale-105'
+                        : 'bg-gray-50 border-gray-200 opacity-40 grayscale hover:opacity-70'
+                    }`;
+
+                badgeCard.innerHTML = `
+            <div class="mb-1">${member.svg}</div>
+            <span class="text-[10px] font-bold ${isUnlocked ? 'text-purple-900' : 'text-gray-500'}">${member.name}</span>
+            <span class="text-[8px] text-gray-400">${member.leader}</span>
+            <span class="text-[9px] font-extrabold text-blue-600 mt-0.5">${member.levels}</span>
+        `;
+
+                container.appendChild(badgeCard);
+            });
+        }
+
+        async function toggleTop4(badgeId) {
+            if (!currentRunId || (currentRunData && currentRunData.is_finished)) return;
+
+            if (currentRunTop4.includes(badgeId)) {
+                currentRunTop4 = currentRunTop4.filter(id => id !== badgeId);
+            } else {
+                currentRunTop4.push(badgeId);
+                currentRunTop4.sort((a, b) => a - b);
+            }
+
+            renderTop4();
+
+            await _supabase.from('runs').update({ top4_badges: currentRunTop4 }).eq('id', currentRunId);
+        }
+
+
+
         function renderDeathCounter(catches) {
             const counterBar = document.getElementById('death-counter-bar');
             if (!counterBar) return;
-            
+
             const visitedRoutesSet = new Set(catches.map(c => c.route_name));
             const encounterCount = visitedRoutesSet.size;
 
@@ -932,7 +1250,7 @@ async function processGagSelection() {
 
             const deathCounts = { "Higa": 0, "Eike": 0, "Ruffy": 0 };
             const processedRoutes = new Set();
-            
+
             catches.forEach(c => {
                 if (c.status === 'DEAD' && c.killed_by && !processedRoutes.has(c.route_name)) {
                     if (deathCounts[c.killed_by] !== undefined) {
@@ -1029,7 +1347,7 @@ async function processGagSelection() {
                             statusColor = 'bg-gray-100 text-gray-500 border-gray-300 line-through';
                         }
                         const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${catchInfo.pokemon_id || 25}.png`;
-                        
+
                         let killerInfo = catchInfo.status === 'DEAD' && catchInfo.killed_by ? `<div class="text-[10px] text-red-600 font-bold">Schuld: ${catchInfo.killed_by}</div>` : '';
 
                         const editBtnHtml = isFinished ? '' : `
@@ -1083,10 +1401,10 @@ async function processGagSelection() {
             document.getElementById('poke-name-input').value = pokeName;
             document.getElementById('poke-level-input').value = level;
             document.getElementById('poke-status-input').value = status;
-            
+
             const killerSelect = document.getElementById('poke-killer-input');
             killerSelect.innerHTML = '<option value="">Bitte wählen...</option>' + PLAYERS.map(p => `<option value="${p}" ${p === killedBy ? 'selected' : ''}>${p}</option>`).join('');
-            
+
             toggleKillerSelect();
             document.getElementById('pokemon-modal').classList.remove('hidden');
         }
@@ -1116,7 +1434,7 @@ async function processGagSelection() {
 
             if (!pokemonNameInput) return;
 
-            let pokemonId = 25; 
+            let pokemonId = 25;
 
             try {
                 let res = await fetch(`https://pokeapi.co/api/v2/pokemon/${pokemonNameInput.toLowerCase()}`);
@@ -1206,9 +1524,57 @@ async function processGagSelection() {
                 console.error("Unerwarteter Fehler in savePokemonData:", err);
             }
         }
+        async function openNewRunModal() {
+            const { data: existingRuns } = await _supabase.from('runs').select('title');
+            let nextDefaultName = "1";
+            if (existingRuns && existingRuns.length > 0) {
+                const numbers = existingRuns.map(r => parseInt(r.title)).filter(n => !isNaN(n));
+                if (numbers.length > 0) {
+                    nextDefaultName = String(Math.max(...numbers) + 1);
+                } else {
+                    nextDefaultName = String(existingRuns.length + 1);
+                }
+            }
+
+            document.getElementById('new-run-title-input').value = nextDefaultName;
+            document.getElementById('new-run-startdate-input').value = getCurrentFormattedDateTime();
+            document.getElementById('new-run-modal').classList.remove('hidden');
+        }
+
+        function closeNewRunModal() {
+            document.getElementById('new-run-modal').classList.add('hidden');
+        }
+
+        async function submitNewRun() {
+            const title = document.getElementById('new-run-title-input').value.trim();
+            const startDate = document.getElementById('new-run-startdate-input').value.trim();
+
+            if (!title) {
+                alert("Bitte gib einen Namen oder eine Nummer für den Run ein.");
+                return;
+            }
+
+            const { data, error } = await _supabase.from('runs').insert([{
+                title: title,
+                startdate: startDate
+            }]).select();
+
+            if (!error && data) {
+                currentRunBadges = [];
+                currentRunTop4 = [];
+                renderBadges();
+                renderTop4();
+                closeNewRunModal();
+                loadRuns();
+            } else {
+                console.error("Fehler beim Erstellen des Runs:", error);
+                alert("Fehler beim Speichern in der Datenbank.");
+            }
+        }
 
         function openFinishRunModal() {
             if (currentRunData && currentRunData.is_finished) return;
+            document.getElementById('finish-enddate-input').value = getCurrentFormattedDateTime();
             document.getElementById('finish-run-modal').classList.remove('hidden');
         }
 
@@ -1218,17 +1584,113 @@ async function processGagSelection() {
 
         async function reopenRun() {
             if (!confirm("Möchtest du diesen Run wirklich wieder zur Bearbeitung freigeben?")) return;
-            
+
             const { error } = await _supabase.from('runs').update({
                 is_finished: false,
                 outcome: null,
-                finish_note: null
+                finish_note: null,
+                enddate: null
             }).eq('id', currentRunId);
 
             if (!error) {
                 await loadRuns();
             }
         }
+
+        // Hilfsfunktion zur Formatierung von ISO-Strings zu 'dd.MM.yy HH:mm'
+        function formatDateToGerman(isoString) {
+            if (!isoString) return '-';
+            const date = new Date(isoString);
+            if (isNaN(date.getTime())) return isoString;
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = String(date.getFullYear()).slice(-2);
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            return `${day}.${month}.${year} ${hours}:${minutes}`;
+        }
+
+        // Parse deutsches Datum ('dd.MM.yy HH:mm') zurück in ein ISO-Format für Supabase
+        function parseGermanDateToISO(germanStr) {
+            if (!germanStr || !germanStr.includes('.')) return null;
+            const parts = germanStr.trim().split(' ');
+            const dateParts = parts[0].split('.');
+            if (dateParts.length < 3) return null;
+            let day = parseInt(dateParts[0], 10);
+            let month = parseInt(dateParts[1], 10) - 1;
+            let year = parseInt(dateParts[2], 10);
+            if (year < 100) year += 2000;
+
+            let hours = 0, minutes = 0;
+            if (parts[1] && parts[1].includes(':')) {
+                const timeParts = parts[1].split(':');
+                hours = parseInt(timeParts[0], 10) || 0;
+                minutes = parseInt(timeParts[1], 10) || 0;
+            }
+            const localDate = new Date(year, month, day, hours, minutes);
+            return isNaN(localDate.getTime()) ? null : localDate.toISOString();
+        }
+
+        // UI-Aktualisierung: Schaltet im aktuellen Run zwischen Textanzeige und Eingabefeldern um
+        function updateRunDatesUI() {
+            if (!currentRunData) return;
+
+            const displayStart = document.getElementById('display-startdate');
+            const displayEnd = document.getElementById('display-enddate');
+            const editStartInput = document.getElementById('edit-startdate-input');
+            const editEndInput = document.getElementById('edit-enddate-input');
+            const saveBtn = document.getElementById('save-dates-btn');
+
+            const isFinished = currentRunData.is_finished;
+
+            displayStart.textContent = formatDateToGerman(currentRunData.startdate);
+            displayEnd.textContent = formatDateToGerman(currentRunData.enddate);
+
+            if (!isFinished) {
+                // Aktiver Run -> Inputs anzeigen
+                editStartInput.value = formatDateToGerman(currentRunData.startdate);
+                editEndInput.value = currentRunData.enddate ? formatDateToGerman(currentRunData.enddate) : '';
+
+                editStartInput.classList.remove('hidden');
+                editEndInput.classList.remove('hidden');
+                displayStart.classList.add('hidden');
+                displayEnd.classList.add('hidden');
+                saveBtn.classList.remove('hidden');
+            } else {
+                // Beendeter Run -> Nur Text anzeigen, Inputs verstecken
+                editStartInput.classList.add('hidden');
+                editEndInput.classList.add('hidden');
+                displayStart.classList.remove('hidden');
+                displayEnd.classList.remove('hidden');
+                saveBtn.classList.add('hidden');
+            }
+        }
+
+        // Speichern-Button Logik für die Datumsänderungen
+        async function saveRunDates() {
+            if (!currentRunId || (currentRunData && currentRunData.is_finished)) return;
+
+            const rawStart = document.getElementById('edit-startdate-input').value.trim();
+            const rawEnd = document.getElementById('edit-enddate-input').value.trim();
+
+            const isoStart = parseGermanDateToISO(rawStart);
+            const isoEnd = rawEnd ? parseGermanDateToISO(rawEnd) : null;
+
+            const { error } = await _supabase.from('runs').update({
+                startdate: isoStart,
+                enddate: isoEnd
+            }).eq('id', currentRunId);
+
+            if (!error) {
+                await loadRuns();
+                alert("Datum erfolgreich aktualisiert!");
+            } else {
+                console.error("Fehler beim Speichern der Daten:", error);
+                alert("Fehler beim Speichern der Datumsangaben.");
+            }
+        }
+
     </script>
 </body>
+
 </html>
