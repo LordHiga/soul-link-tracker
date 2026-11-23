@@ -591,6 +591,12 @@
                 const { catchRoute: route, catchPlayer: player } = button.dataset;
                 openModal(route, player, displayedRoutes.routesMap[route]?.[player]);
             });
+            document.getElementById('routes-container').addEventListener('error', (e) => {
+                const image = e.target;
+                if (image.tagName !== 'IMG' || !image.hasAttribute('data-catch-sprite')) return;
+                image.removeAttribute('data-catch-sprite');
+                image.src = 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png';
+            }, true);
             document.getElementById('retry-pokemon-catalog').addEventListener('click', retryPokemonCatalog);
 
             document.getElementById('finish-run-form').addEventListener('submit', async (e) => {
@@ -787,8 +793,8 @@
             };
 
             data.sort((a, b) => {
-                const statusA = (a.status || 'open').toLowerCase();
-                const statusB = (b.status || 'open').toLowerCase();
+                const statusA = String(a.status || 'open').toLowerCase();
+                const statusB = String(b.status || 'open').toLowerCase();
 
                 const orderA = statusOrder[statusA] || 99;
                 const orderB = statusOrder[statusB] || 99;
@@ -806,7 +812,7 @@
                 if (item.type === 'Sonstiges') badgeColor = 'bg-purple-100 text-purple-800 border-purple-200';
 
                 // Status-Badge & Layout Farben definieren
-                const rawStatus = (item.status || 'open').toLowerCase();
+                const rawStatus = String(item.status || 'open').toLowerCase();
                 let statusBg = '';
                 let statusLabel = '';
                 let leftBorderClass = '';
@@ -832,43 +838,43 @@
                     leftBorderClass = 'border-l-4 border-blue-500 bg-blue-50/30';
                 }
 
-                // Escape helper für onclick-Attribute
-                const safeDesc = item.description.replace(/'/g, "\\'").replace(/"/g, '&quot;').replace(/\n/g, ' ');
                 const ownerName = item.owner || 'Unbekannt';
 
                 return `
                     <div class="bg-white border border-gray-200 rounded-xl p-4 ${leftBorderClass} flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-sm">
                         <div class="space-y-1.5 flex-1">
                             <div class="flex items-center space-x-2 flex-wrap gap-y-1">
-                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}">${item.type}</span>
+                                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${badgeColor}">${escapeHtml(item.type)}</span>
                                 <span class="text-[11px] font-bold px-2 py-0.5 rounded-full border ${statusBg}">${statusLabel}</span>
-                                <span class="text-[11px] text-gray-500 font-semibold flex items-center gap-1 ml-1">👤 ${ownerName}</span>
+                                <span class="text-[11px] text-gray-500 font-semibold flex items-center gap-1 ml-1">👤 ${escapeHtml(ownerName)}</span>
                                 <span class="text-xs text-gray-400 ml-1">• ${dateStr}</span>
                             </div>
-                            <p class="${descriptionClass}">${item.description}</p>
+                            <p class="${descriptionClass}">${escapeHtml(item.description)}</p>
                         </div>
-                        <button onclick="openFeedbackModal('${item.id}', '${item.type}', '${safeDesc}', '${rawStatus}')"
+                        <button type="button" data-edit-feedback
                             class="text-xs bg-white border border-gray-300 hover:bg-gray-100 px-3 py-1.5 rounded-lg font-semibold transition text-gray-700 self-end sm:self-center">
                             ✏️ Bearbeiten
                         </button>
                     </div>
                 `;
             }).join('');
+            container.querySelectorAll('button[data-edit-feedback]').forEach((button, index) => {
+                const { id, type, description, status } = data[index];
+                button.addEventListener('click', () => openFeedbackModal(id, type, description, status));
+            });
         }
 
         function openFeedbackModal(id = '', type = 'Feature', description = '', status = 'open') {
             document.getElementById('feedback-id').value = id;
             document.getElementById('feedback-type').value = type;
-            document.getElementById('feedback-description').value = description;
+            document.getElementById('feedback-description').value = description ?? '';
 
             // Richtigen Radiobutton basierend auf dem übergebenen Status (oder Default 'open') auswählen
-            const statusVal = status ? status.toLowerCase() : 'open';
-            const radioToSelect = document.querySelector(`input[name="feedback-status"][value="${statusVal}"]`);
-            if (radioToSelect) {
-                radioToSelect.checked = true;
-            } else {
-                document.querySelector('input[name="feedback-status"][value="open"]').checked = true;
-            }
+            const statusVal = String(status || 'open').toLowerCase();
+            const radios = [...document.querySelectorAll('input[name="feedback-status"]')];
+            const radioToSelect = radios.find(radio => radio.value === statusVal)
+                ?? radios.find(radio => radio.value === 'open');
+            if (radioToSelect) radioToSelect.checked = true;
 
             document.getElementById('feedback-modal-title').textContent = id ? 'Eintrag bearbeiten' : 'Neuen Eintrag erstellen';
             document.getElementById('feedback-modal').classList.remove('hidden');
@@ -931,8 +937,7 @@
         }
 
         function escapeHtml(text) {
-            if (!text) return '';
-            return text.replace(/&/g, "&amp;")
+            return String(text ?? '').replace(/&/g, "&amp;")
                 .replace(/</g, "&lt;")
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
@@ -1467,7 +1472,7 @@
                 let routeCard = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
                         <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-gray-700 flex justify-between items-center">
-                            <span>📍 ${routeName}</span>
+                            <span>📍 ${escapeHtml(routeName)}</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200">
                 `;
@@ -1504,7 +1509,7 @@
 
                         content = `
                             <div class="flex items-center space-x-3 p-3 rounded-lg border ${statusColor} my-2">
-                                <img src="${spriteUrl}" alt="${displayName}" class="w-12 h-12 shrink-0 object-contain" loading="lazy" onerror="this.onerror=null;this.src='https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/0.png'">
+                                <img src="${spriteUrl}" alt="${displayName}" class="w-12 h-12 shrink-0 object-contain" loading="lazy" data-catch-sprite>
                                 <div class="min-w-0 flex-1">
                                     <div class="break-words font-bold text-sm">${displayName} (Lvl ${escapeHtml(String(catchInfo.level ?? ''))})</div>
                                     ${typeBadges ? `<div class="my-1 flex flex-wrap gap-1">${typeBadges}</div>` : ''}
