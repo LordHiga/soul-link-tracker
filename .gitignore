@@ -1,0 +1,14 @@
+/.pokemon-catalog-cache/
+/pokemon-catalog-import.next.sql
+/supabase/.temp/
+/.auth/
+
+*.tmp
+*.bak
+.env
+.env.*
+!.env.example
+.netrc
+.pgpass
+*.pem
+*.key
