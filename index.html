@@ -357,7 +357,7 @@
                 <div class="flex space-x-3 pt-2">
                     <button type="button" onclick="closeNewRunModal()"
                         class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
-                    <button type="button" onclick="submitNewRun()"
+                    <button id="create-run-btn" type="button" onclick="submitNewRun()"
                         class="w-1/2 bg-green-600 hover:bg-green-500 text-white p-2 rounded-lg font-semibold transition">Erstellen</button>
                 </div>
             </div>
@@ -392,7 +392,7 @@
                 <div class="flex space-x-3 pt-2">
                     <button type="button" onclick="closeFinishModal()"
                         class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
-                    <button type="submit"
+                    <button id="confirm-finish-run-btn" type="submit"
                         class="w-1/2 bg-red-600 hover:bg-red-500 text-white p-2 rounded-lg font-semibold transition">Run
                         abschließen</button>
                 </div>
@@ -521,6 +521,10 @@
         let currentRunTop4 = [];
         let allPokemonNames = [];
         let currentRunId = null;
+        let loadedRuns = [];
+        let creatingRun = false;
+        let finishRunId = null;
+        let finishingRun = false;
         let activeRoute = null;
         let activePlayer = null;
         let currentRunData = null;
@@ -552,26 +556,7 @@
 
             document.getElementById('finish-run-form').addEventListener('submit', async (e) => {
                 e.preventDefault();
-                const outcome = document.getElementById('finish-outcome-input').value;
-                const note = document.getElementById('finish-note-input').value.trim();
-                const rawEndDate = document.getElementById('finish-enddate-input').value.trim();
-
-                // Datum ins ISO-Format konvertieren
-                const isoEndDate = parseGermanDateToISO(rawEndDate);
-
-                const { error } = await _supabase.from('runs').update({
-                    is_finished: true,
-                    outcome: outcome,
-                    finish_note: note,
-                    enddate: isoEndDate
-                }).eq('id', currentRunId);
-
-                if (!error) {
-                    closeFinishModal();
-                    await loadRuns();
-                } else {
-                    alert("Fehler beim Beenden des Runs: " + error.message);
-                }
+                await finishRun();
             });
 
             document.getElementById('feedback-form').addEventListener('submit', async (e) => {
@@ -1017,73 +1002,87 @@
 
         async function loadRuns() {
             const { data, error } = await _supabase.from('runs').select('*').order('created_at', { ascending: false });
+            if (error || !Array.isArray(data)) {
+                alert("Die Run-Liste konnte nicht geladen werden.");
+                return;
+            }
+            loadedRuns = data;
+            if (loadedRuns.length === 0) {
+                await createNewRun('1', getCurrentFormattedDateTime());
+                return;
+            }
+            await showRuns();
+        }
+
+        async function showRuns() {
             const select = document.getElementById('run-select');
             select.innerHTML = '';
 
-            if (data && data.length > 0) {
-                data.forEach(run => {
-                    const opt = document.createElement('option');
-                    opt.value = run.id;
-                    const statusTag = run.is_finished ? ` [${run.outcome}]` : '';
-                    opt.textContent = `${run.title}${statusTag}`;
-                    select.appendChild(opt);
-                });
+            loadedRuns.forEach(run => {
+                const opt = document.createElement('option');
+                opt.value = run.id;
+                const statusTag = run.is_finished ? ` [${run.outcome}]` : '';
+                opt.textContent = `${run.title}${statusTag}`;
+                select.appendChild(opt);
+            });
 
-                // Aktiven Run bestimmen
-                if (!currentRunId || !data.some(r => r.id === currentRunId)) {
-                    currentRunId = data[0].id;
-                }
-                select.value = currentRunId;
-
-                select.onchange = (e) => {
-                    currentRunId = e.target.value;
-                    loadRoutesAndCatches();
-                };
-
-                await loadRoutesAndCatches();
-            } else {
-                await createNewRun();
+            if (!loadedRuns.some(run => run.id === currentRunId)) {
+                currentRunId = loadedRuns[0].id;
             }
+            select.value = currentRunId;
+            select.onchange = (e) => {
+                currentRunId = loadedRuns.find(run => String(run.id) === e.target.value)?.id;
+                loadRoutesAndCatches();
+            };
+            await loadRoutesAndCatches();
         }
 
-        async function createNewRun() {
-            const { data: existingRuns } = await _supabase.from('runs').select('title');
-            let nextDefaultName = "1";
-            if (existingRuns && existingRuns.length > 0) {
-                const numbers = existingRuns.map(r => parseInt(r.title)).filter(n => !isNaN(n));
-                if (numbers.length > 0) {
-                    nextDefaultName = String(Math.max(...numbers) + 1);
-                } else {
-                    nextDefaultName = String(existingRuns.length + 1);
-                }
+        async function createNewRun(title, rawStartDate) {
+            if (creatingRun) return;
+            if (!title) {
+                alert("Bitte gib einen Namen oder eine Nummer für den Run ein.");
+                return;
             }
-
-
-            const { data, error } = await _supabase.from('runs').insert([{ title: title.trim() }]).select();
-            if (!error && data) {
-
-                currentRunBadges = [];
-                currentRunTop4 = [];
-                renderBadges();
-                renderTop4();
-
-                loadRuns();
+            const startdate = parseGermanDateToISO(rawStartDate);
+            if (!startdate) {
+                alert("Bitte gib ein gültiges Startdatum im Format TT.MM.JJ HH:mm ein.");
+                return;
+            }
+            const button = document.getElementById('create-run-btn');
+            creatingRun = button.disabled = true;
+            try {
+                const { data, error } = await _supabase.from('runs').insert({ title, startdate }).select().single();
+                if (error || data?.id == null) {
+                    alert("Der neue Run konnte nicht bestätigt werden.");
+                    return;
+                }
+                loadedRuns = [data, ...loadedRuns.filter(run => run.id !== data.id)];
+                currentRunId = data.id;
+                closeNewRunModal();
+                await showRuns();
+            } finally {
+                creatingRun = button.disabled = false;
             }
         }
 
         async function loadRoutesAndCatches() {
-            if (!currentRunId) return;
+            const runId = currentRunId;
+            if (!runId) return;
 
-            const { data: runData } = await _supabase.from('runs').select('*').eq('id', currentRunId).single();
-            currentRunData = runData || {};
-            currentRunBadges = (runData && runData.badges) ? runData.badges : [];
-            currentRunTop4 = (runData && runData.top4_badges) ? runData.top4_badges : [];
+            const { data: runData } = await _supabase.from('runs').select('*').eq('id', runId).single();
+            if (currentRunId !== runId) return;
+            currentRunData = runData || loadedRuns.find(run => run.id === runId);
+            if (!currentRunData) return;
+            currentRunBadges = currentRunData.badges || [];
+            currentRunTop4 = currentRunData.top4_badges || [];
 
             updateRunLockState();
+            updateRunDatesUI();
             renderBadges();
             renderTop4();
 
-            const { data: catches, error } = await _supabase.from('catches').select('*').eq('run_id', currentRunId);
+            const { data: catches } = await _supabase.from('catches').select('*').eq('run_id', runId);
+            if (currentRunId !== runId) return;
 
             const routesMap = {};
             KANTO_ROUTES.forEach(r => routesMap[r] = {});
@@ -1525,7 +1524,13 @@
             }
         }
         async function openNewRunModal() {
-            const { data: existingRuns } = await _supabase.from('runs').select('title');
+            if (creatingRun) return;
+            const { data: existingRuns, error } = await _supabase.from('runs').select('title');
+            if (error) {
+                alert("Die Run-Titel konnten nicht geladen werden.");
+                return;
+            }
+            if (creatingRun) return;
             let nextDefaultName = "1";
             if (existingRuns && existingRuns.length > 0) {
                 const numbers = existingRuns.map(r => parseInt(r.title)).filter(n => !isNaN(n));
@@ -1547,39 +1552,56 @@
 
         async function submitNewRun() {
             const title = document.getElementById('new-run-title-input').value.trim();
-            const startDate = document.getElementById('new-run-startdate-input').value.trim();
-
-            if (!title) {
-                alert("Bitte gib einen Namen oder eine Nummer für den Run ein.");
-                return;
-            }
-
-            const { data, error } = await _supabase.from('runs').insert([{
-                title: title,
-                startdate: startDate
-            }]).select();
-
-            if (!error && data) {
-                currentRunBadges = [];
-                currentRunTop4 = [];
-                renderBadges();
-                renderTop4();
-                closeNewRunModal();
-                loadRuns();
-            } else {
-                console.error("Fehler beim Erstellen des Runs:", error);
-                alert("Fehler beim Speichern in der Datenbank.");
-            }
+            const startDate = document.getElementById('new-run-startdate-input').value;
+            await createNewRun(title, startDate);
         }
 
         function openFinishRunModal() {
-            if (currentRunData && currentRunData.is_finished) return;
+            if (finishingRun || !currentRunData || currentRunData.id !== currentRunId || currentRunData.is_finished) return;
+            finishRunId = currentRunId;
             document.getElementById('finish-enddate-input').value = getCurrentFormattedDateTime();
             document.getElementById('finish-run-modal').classList.remove('hidden');
         }
 
         function closeFinishModal() {
+            finishRunId = null;
             document.getElementById('finish-run-modal').classList.add('hidden');
+        }
+
+        async function finishRun() {
+            if (finishingRun || finishRunId == null) return;
+            const runId = finishRunId;
+            const outcome = document.getElementById('finish-outcome-input').value;
+            const finish_note = document.getElementById('finish-note-input').value.trim();
+            const enddate = parseGermanDateToISO(document.getElementById('finish-enddate-input').value);
+            if (!enddate) {
+                alert("Bitte gib ein gültiges Enddatum im Format TT.MM.JJ HH:mm ein.");
+                return;
+            }
+
+            const button = document.getElementById('confirm-finish-run-btn');
+            finishingRun = button.disabled = true;
+            try {
+                const { data, error } = await _supabase.from('runs')
+                    .update({ is_finished: true, outcome, finish_note, enddate })
+                    .eq('id', runId)
+                    .or('is_finished.eq.false,is_finished.is.null')
+                    .select()
+                    .maybeSingle();
+                if (error || data?.id !== runId || data.is_finished !== true) {
+                    alert("Der Run-Abschluss konnte nicht bestätigt werden. Lade die Seite neu, um den aktuellen Stand zu prüfen.");
+                    return;
+                }
+
+                loadedRuns = loadedRuns.map(run => run.id === runId ? data : run);
+                closeFinishModal();
+                await showRuns();
+                if (!document.getElementById('view-history').classList.contains('hidden')) {
+                    await loadAndRenderHistory();
+                }
+            } finally {
+                finishingRun = button.disabled = false;
+            }
         }
 
         async function reopenRun() {
@@ -1612,23 +1634,15 @@
 
         // Parse deutsches Datum ('dd.MM.yy HH:mm') zurück in ein ISO-Format für Supabase
         function parseGermanDateToISO(germanStr) {
-            if (!germanStr || !germanStr.includes('.')) return null;
-            const parts = germanStr.trim().split(' ');
-            const dateParts = parts[0].split('.');
-            if (dateParts.length < 3) return null;
-            let day = parseInt(dateParts[0], 10);
-            let month = parseInt(dateParts[1], 10) - 1;
-            let year = parseInt(dateParts[2], 10);
-            if (year < 100) year += 2000;
-
-            let hours = 0, minutes = 0;
-            if (parts[1] && parts[1].includes(':')) {
-                const timeParts = parts[1].split(':');
-                hours = parseInt(timeParts[0], 10) || 0;
-                minutes = parseInt(timeParts[1], 10) || 0;
-            }
-            const localDate = new Date(year, month, day, hours, minutes);
-            return isNaN(localDate.getTime()) ? null : localDate.toISOString();
+            const match = /^(\d{1,2})\.(\d{1,2})\.(\d{2}|\d{4})\s+(\d{1,2}):(\d{2})$/.exec(germanStr.trim());
+            if (!match) return null;
+            const [, day, month, inputYear, hours, minutes] = match;
+            const year = inputYear.length === 2 ? 2000 + Number(inputYear) : Number(inputYear);
+            const date = new Date(year, Number(month) - 1, Number(day), Number(hours), Number(minutes));
+            if (date.getFullYear() !== year || date.getMonth() !== Number(month) - 1 ||
+                date.getDate() !== Number(day) || date.getHours() !== Number(hours) ||
+                date.getMinutes() !== Number(minutes)) return null;
+            return date.toISOString();
         }
 
         // UI-Aktualisierung: Schaltet im aktuellen Run zwischen Textanzeige und Eingabefeldern um
@@ -1648,7 +1662,7 @@
 
             if (!isFinished) {
                 // Aktiver Run -> Inputs anzeigen
-                editStartInput.value = formatDateToGerman(currentRunData.startdate);
+                editStartInput.value = currentRunData.startdate ? formatDateToGerman(currentRunData.startdate) : '';
                 editEndInput.value = currentRunData.enddate ? formatDateToGerman(currentRunData.enddate) : '';
 
                 editStartInput.classList.remove('hidden');
@@ -1675,6 +1689,10 @@
 
             const isoStart = parseGermanDateToISO(rawStart);
             const isoEnd = rawEnd ? parseGermanDateToISO(rawEnd) : null;
+            if ((rawStart && !isoStart) || (rawEnd && !isoEnd)) {
+                alert("Bitte gib gültige Datumswerte im Format TT.MM.JJ HH:mm ein.");
+                return;
+            }
 
             const { error } = await _supabase.from('runs').update({
                 startdate: isoStart,
