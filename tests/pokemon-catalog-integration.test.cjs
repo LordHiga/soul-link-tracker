@@ -37,7 +37,8 @@ function caught(id, name, fields = {}) {
     };
 }
 
-async function setup({ result = { data: fixture() }, initialCatches = [], storage = browserStorage(), loggedIn = true } = {}) {
+async function setup({ result = { data: fixture() }, initialCatches = [], storage = browserStorage(), loggedIn = true,
+    primaryUpdateResult } = {}) {
     const elements = new Map();
     const writes = [];
     const requests = [];
@@ -90,7 +91,16 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                     requests.push(columns);
                     return catalogResult;
                 },
-                single: async () => ({ data: runs.find(run => run.id === filters.id) }),
+                async single() {
+                    if (table !== 'catches') return { data: runs.find(run => run.id === filters.id) };
+                    assert.equal(columns, 'id');
+                    writes.push(update);
+                    if (primaryUpdateResult) return primaryUpdateResult;
+                    const record = catches.find(record => record.id === filters.id);
+                    if (!record) return { data: null, error: { code: 'PGRST116' } };
+                    Object.assign(record, update);
+                    return { data: { id: record.id }, error: null };
+                },
                 async insert(records) {
                     assert.equal(table, 'catches');
                     writes.push(...records);
@@ -190,10 +200,11 @@ test('saves a selected catalog name and exact ID and blocks unknown or ambiguous
     assert.equal(app.writes.length, 1);
     assert.equal(app.writes[0].pokemon_id, 6);
     assert.equal(app.writes[0].pokemon_name, 'Glurak');
+    assert.ok(!Object.hasOwn(app.writes[0], 'level'));
     assert.equal(app.element('poke-name-input').value, 'Glurak');
 });
 
-test('preserves the stored IDs and names during status and level updates even without the catalog', async () => {
+test('preserves stored IDs, names and levels during status updates even without the catalog', async () => {
     for (const [record, result, shown] of [
         [caught(4, oldName), { data: fixture() }, 'Glumanda'],
         [caught(387, 'Chelast'), { error: { message: 'catalog unavailable' } }, 'Chelast'],
@@ -203,16 +214,84 @@ test('preserves the stored IDs and names during status and level updates even wi
         await app.run('checkAuth()');
         await app.open(Object.freeze({ ...record }));
         assert.equal(app.element('poke-name-input').value, shown);
-        app.element('poke-level-input').value = 9;
         app.element('poke-status-input').value = 'BOX';
         await app.run('savePokemonData()');
         const [update] = app.writes;
         assert.ok(!Object.hasOwn(update, 'pokemon_id'));
         assert.ok(!Object.hasOwn(update, 'pokemon_name'));
+        assert.ok(!Object.hasOwn(update, 'level'));
         assert.equal(app.catches[0].pokemon_id, record.pokemon_id);
         assert.equal(app.catches[0].pokemon_name, record.pokemon_name);
-        assert.equal(app.catches[0].level, 9);
+        assert.equal(app.catches[0].level, record.level);
         assert.equal(app.catches[0].status, 'BOX');
+    }
+});
+
+test('the shared catch form and overview show no Pokémon levels', async () => {
+    assert.doesNotMatch(html, /poke-level-input|\bLvl\b|\.levels\b|>Level</);
+    const record = caught(4, oldName, { level: 87 });
+    const app = await setup({ initialCatches: [record] });
+    await app.run('checkAuth()');
+    const tracker = app.element('routes-container').innerHTML;
+    assert.match(tracker, /Glumanda/);
+    assert.doesNotMatch(tracker, /Lvl|\b87\b/);
+    await app.open();
+    assert.equal(app.element('poke-name-input').value, '');
+    await app.open(record);
+    assert.equal(app.element('poke-name-input').value, 'Glumanda');
+    await app.run('savePokemonData()');
+    assert.equal(app.writes.length, 0);
+});
+
+const boxedPartner = caught(1, 'Bisasam', { id: 'partner-1', player_name: 'Eike', status: 'BOX' });
+const deadPartner = caught(5, 'Glutexo', { id: 'partner-2', player_name: 'Ruffy', status: 'DEAD', killed_by: 'Eike' });
+
+test('renaming a catch or adding an ALIVE catch does not overwrite partner status or death attribution', async () => {
+    for (const original of [caught(4, oldName), undefined]) {
+        const initialCatches = original ? [original, boxedPartner, deadPartner] : [boxedPartner, deadPartner];
+        const app = await setup({ initialCatches });
+        await app.run('checkAuth()');
+        await app.open(original);
+        app.element('poke-name-input').value = 'Glurak';
+        await app.run('savePokemonData()');
+        assert.equal(app.writes.length, 1);
+        if (original) assert.ok(!Object.hasOwn(app.writes[0], 'status'));
+        assert.deepEqual(app.catches.filter(row => row.player_name !== player), [boxedPartner, deadPartner]);
+    }
+});
+
+test('intentional status and death attribution changes still synchronize the Soul Link', async () => {
+    for (const original of [caught(4, oldName), caught(4, oldName, { status: 'DEAD', killed_by: 'Eike' })]) {
+        const app = await setup({ initialCatches: [original, boxedPartner, deadPartner] });
+        await app.run('checkAuth()');
+        await app.open(original);
+        app.element('poke-status-input').value = 'DEAD';
+        app.element('poke-killer-input').value = 'Ruffy';
+        await app.run('savePokemonData()');
+        assert.equal(app.writes.length, 3);
+        assert.ok(app.catches.every(row => row.status === 'DEAD' && row.killed_by === 'Ruffy'));
+        assert.ok(app.writes.every(update => !Object.hasOwn(update, 'level')));
+    }
+});
+
+test('unconfirmed or failed catch updates keep the dialog open and stop partner writes', async () => {
+    const original = caught(4, oldName);
+    for (const primaryUpdateResult of [
+        { data: null, error: { code: 'PGRST116' } },
+        { data: null, error: null },
+        { data: { id: 'another-row' }, error: null },
+        { data: null, error: { code: 'fixture-error' } }
+    ]) {
+        const app = await setup({ initialCatches: [original, boxedPartner, deadPartner], primaryUpdateResult });
+        await app.run('checkAuth()');
+        await app.open(original);
+        app.element('poke-status-input').value = 'BOX';
+        await app.run('savePokemonData()');
+        assert.equal(app.writes.length, 1);
+        assert.equal(app.element('pokemon-modal').classList.contains('hidden'), false);
+        assert.match(app.element('pokemon-save-error').textContent, /nicht bestätigt|nicht gespeichert/);
+        assert.equal(app.element('pokemon-save-btn').disabled, false);
+        assert.deepEqual(app.catches, [original, boxedPartner, deadPartner]);
     }
 });
 
