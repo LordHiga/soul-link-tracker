@@ -76,14 +76,17 @@ function assertTextOnly(markup) {
     assert.doesNotMatch(markup, /<script|<em data-probe|\bon(?:click|error)\s*=/i);
 }
 
-test('run titles, Pokémon and route names are text in history; the archive note uses textContent', async () => {
+test('run titles are escaped in both history layouts; the archive note uses textContent', async () => {
     const run = { id: 'fixture-run', title: probe, is_finished: true, finish_note: probe, outcome: 'WIPE' };
     const app = setup({ runs: [run], catches: [{ run_id: run.id, pokemon_name: probe, route_name: probe, player_name: 'Higa' }] });
     app.context.fixture = run;
     await app.run('loadAndRenderHistory()');
     const history = app.element('runs-overview-table-body').innerHTML;
+    const cards = app.element('run-history-cards').innerHTML;
     assertTextOnly(history);
-    assert.equal(history.split(escaped).length - 1, 3);
+    assertTextOnly(cards);
+    assert.equal(history.split(escaped).length - 1, 1);
+    assert.equal(cards.split(escaped).length - 1, 1);
     await app.run('loadedRuns = [fixture]; loadRoutesAndCatches = async () => {}; showRuns()');
     assert.equal(app.element('run-select').children[0].textContent, probe + ' [WIPE]');
     app.run('currentRunData = fixture; updateRunLockState()');

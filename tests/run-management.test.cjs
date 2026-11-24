@@ -138,6 +138,28 @@ test('confirmed finish archives the run captured when the dialog was opened', as
     assert.match(app.element('runs-overview-table-body').innerHTML, /Wipe/);
 });
 
+test('history preserves saved outcomes, including unknown and missing completion types', async () => {
+    const app = setup([
+        { id: 'active', title: 'Aktiv', is_finished: false },
+        { id: 'wipe', title: 'Alte Niederlage', is_finished: true, outcome: 'WIPE' },
+        { id: 'winner', title: 'Alter Sieg', is_finished: true, outcome: 'WON' },
+        { id: 'other', title: 'Anderer Abschluss', is_finished: true, outcome: '<em>Abbruch</em>' },
+        { id: 'unknown', title: 'Unbekannter Abschluss', is_finished: true }
+    ]);
+    await app.run('loadAndRenderHistory()');
+    const rows = app.element('runs-overview-table-body').innerHTML;
+    const cards = app.element('run-history-cards').innerHTML;
+    for (const markup of [rows, cards]) {
+        assert.match(markup, /Laufend/);
+        assert.match(markup, /Champ/);
+        assert.match(markup, /Abgeschlossen/);
+        assert.match(markup, /&lt;em&gt;Abbruch&lt;\/em&gt;/);
+        assert.equal((markup.match(/>Wipe</g) ?? []).length, 1);
+    }
+    assert.equal((cards.match(/<details class=/g) ?? []).length, 5);
+    assert.doesNotMatch(cards, /<details[^>]*\sopen[\s=>]/);
+});
+
 test('finish without an updated row leaves the dialog open and reports failure', async () => {
     const app = setup([{ id: 'first', title: '1', is_finished: false }]);
     await app.run('loadRuns()');

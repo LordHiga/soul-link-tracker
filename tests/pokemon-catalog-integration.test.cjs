@@ -442,7 +442,7 @@ test('unconfirmed or failed catch updates keep the dialog open and stop partner 
     }
 });
 
-test('renders German history names and ordered historical badges on the tracker, with safe legacy fallback', async () => {
+test('renders German names and historical type badges only in the tracker, with safe legacy fallback', async () => {
     const app = await setup({ initialCatches: [
         caught(1, 'Bulbasaur'), caught(282, 'Gardevoir', { player_name: 'Eike' }),
         caught(303, 'Mawile', { player_name: 'Ruffy' }),
@@ -457,9 +457,10 @@ test('renders German history names and ordered historical badges on the tracker,
     assert.doesNotMatch(tracker, /Bulbasaur|Gardevoir|Mawile|>Fee<|<img src=x>|onclick="openModal/);
     await app.run('loadAndRenderHistory()');
     const history = app.element('runs-overview-table-body').innerHTML;
-    assert.match(history, /<details[\s\S]*Bisasam[\s\S]*Guardevoir[\s\S]*Flunkifer/);
-    assert.match(history, /&lt;img src=x&gt;/);
-    assert.doesNotMatch(history, /Bulbasaur|Gardevoir|Mawile|<img src=x>/);
+    const cards = app.element('run-history-cards').innerHTML;
+    assert.match(cards, /Encounters: 2 · Alive \/ Box: 2/);
+    assert.doesNotMatch(history + cards, /Bisasam|Guardevoir|Flunkifer|Bulbasaur|Gardevoir|Mawile|img src|Pokémon anzeigen|<ul/);
+    assert.doesNotMatch(history, /<details/);
     assert.deepEqual(app.reports, [387]);
     assert.deepEqual(app.writes, []);
 });

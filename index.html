@@ -68,7 +68,7 @@
         }
 
         :where(#app-screen, #pokemon-modal, #team-dialog, #new-run-modal, #finish-run-modal, #feedback-modal)
-        :is(button, select, input, textarea):focus-visible {
+        :is(button, select, input, textarea, summary):focus-visible {
             outline: 2px solid #2563eb;
             outline-offset: 2px;
         }
@@ -144,6 +144,14 @@
         #team-grid > div > div {
             align-content: center;
             row-gap: 0.125rem;
+        }
+
+        #run-history-cards summary::-webkit-details-marker {
+            display: none;
+        }
+
+        #run-history-cards details[open] .history-chevron {
+            transform: rotate(180deg);
         }
 
         @media (max-width: 767px) {
@@ -361,34 +369,29 @@
                 <div id="routes-container" class="space-y-4"></div>
             </div>
 
-            <!-- ANSICHT 2: RUN-HISTORIE (Tabelle) -->
+            <!-- ANSICHT 2: RUN-HISTORIE -->
             <div id="view-history" class="hidden">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
                     <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                         📊 Übersicht aller Runs
                     </h2>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left text-xs border-collapse">
+                    <p id="run-history-notice" class="text-sm text-gray-600" role="status"></p>
+                    <div class="hidden md:block">
+                        <table class="w-full table-fixed text-left text-sm border-collapse">
                             <thead>
                                 <tr
                                     class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wider font-semibold">
 
-                                    <th class="py-3 px-4">Run</th>
-                                    <th class="py-3 px-4">Zeitraum</th>
-                                    <th class="py-3 px-4">Status</th>
-                                    <th class="py-3 px-4">Orden</th>
-                                    <th class="py-3 px-4">Top 4 & Champ</th>
-                                    <th class="py-3 px-4">Encounter-Stats</th>
-                                    <th class="py-3 px-4">Todesursachen (Schuld)</th>
+                                    <th scope="col" class="w-1/3 py-3 px-3">Run</th>
+                                    <th scope="col" class="w-1/3 py-3 px-3">Zeitraum</th>
+                                    <th scope="col" class="py-3 px-3">Orden</th>
+                                    <th scope="col" class="py-3 px-3">Status</th>
                                 </tr>
                             </thead>
-                            <tbody id="runs-overview-table-body" class="divide-y divide-gray-100 text-gray-700">
-                                <tr>
-                                    <td colspan="7" class="py-4 text-center text-gray-400">Lade Daten...</td>
-                                </tr>
-                            </tbody>
+                            <tbody id="runs-overview-table-body" class="divide-y divide-gray-100 text-gray-700"></tbody>
                         </table>
                     </div>
+                    <div id="run-history-cards" class="space-y-2 md:hidden"></div>
                 </div>
             </div>
 
@@ -671,6 +674,7 @@
         let pokemonCatalogSession;
         const missingPokemonIds = new Set();
         let currentRunId = null;
+        let historyRuns = [];
         let loadedRuns = [];
         let creatingRun = false;
         let finishRunId = null;
@@ -706,6 +710,19 @@
             document.getElementById('pokemon-remove-btn').addEventListener('click', removePokemonCatch);
             document.getElementById('route-search').addEventListener('input', refreshRouteView);
             document.getElementById('route-view').addEventListener('change', refreshRouteView);
+            document.getElementById('view-history').addEventListener('click', (event) => {
+                const target = event.target.closest('[data-history-run]');
+                const run = target && historyRuns.find(item => String(item.id) === target.dataset.historyRun);
+                if (!run) return;
+
+                const index = loadedRuns.findIndex(item => item.id === run.id);
+                if (index === -1) loadedRuns.unshift(run);
+                else loadedRuns[index] = run;
+                renderRunOptions();
+                void selectRun(run.id);
+                switchTab('tracker');
+                document.getElementById('run-select').focus();
+            });
             document.getElementById('routes-container').addEventListener('click', (e) => {
                 const button = e.target.closest('button[data-catch-player]');
                 if (!button || displayedRoutes?.runId !== currentRunId) return;
@@ -1065,126 +1082,107 @@
                 .replace(/'/g, "&#039;");
         }
 
-        /* --- RUN HISTORIE & DASHBOARD LOGIK --- */
-        /* --- RUN HISTORIE & DASHBOARD LOGIK --- */
+        /* --- RUN-HISTORIE --- */
         async function loadAndRenderHistory() {
             const tbody = document.getElementById('runs-overview-table-body');
-            if (!tbody) return;
-            // UPDATE: colspan="7"
-            tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-400">Lade Daten...</td></tr>';
+            const cards = document.getElementById('run-history-cards');
+            const notice = document.getElementById('run-history-notice');
+            historyRuns = [];
+            tbody.innerHTML = cards.innerHTML = '';
+            notice.textContent = 'Lade Daten...';
 
             try {
                 const [{ data: runs, error: runsError }, { data: catches, error: catchesError }] = await Promise.all([
                     _supabase.from('runs').select('*'),
-                    _supabase.from('catches').select('*'),
-                    pokemonCatalogSession?.request
+                    _supabase.from('catches').select('run_id,route_name,status')
                 ]);
-                if (runsError || catchesError) throw runsError || catchesError;
-
-                if (!runs || runs.length === 0) {
-                    // UPDATE: colspan="7"
-                    tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-gray-400">Keine Runs gefunden.</td></tr>';
+                if (runsError) throw runsError;
+                if (!runs?.length) {
+                    notice.textContent = 'Keine Runs gefunden.';
                     return;
                 }
 
-                runs.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? ''), undefined, { numeric: true, sensitivity: 'base' }));
-
-                tbody.innerHTML = runs.map(run => {
-                    const runCatches = (catches || []).filter(c => c.run_id === run.id);
-                    const encounterNames = runCatches.map(c => `
-                        <li>${escapeHtml(pokemonDisplayName(c))}
-                            <span class="text-gray-500">· ${escapeHtml(c.player_name)} · ${escapeHtml(c.route_name)}</span>
-                        </li>`).join('');
-
-                    const encounterCount = new Set(runCatches.map(c => c.route_name)).size;
-                    const aliveCount = new Set(runCatches.filter(c => c.status === 'ALIVE' || c.status === 'BOX').map(c => c.route_name)).size;
-                    const deadCount = new Set(runCatches.filter(c => c.status === 'DEAD').map(c => c.route_name)).size;
-                    const failedCount = new Set(runCatches.filter(c => c.status === 'FAILED').map(c => c.route_name)).size;
-
-                    const deathCounts = { "Higa": 0, "Eike": 0, "Ruffy": 0 };
-                    const processedRoutes = new Set();
-                    runCatches.forEach(c => {
-                        if (c.status === 'DEAD' && c.killed_by && !processedRoutes.has(c.route_name)) {
-                            if (deathCounts[c.killed_by] !== undefined) deathCounts[c.killed_by]++;
-                            processedRoutes.add(c.route_name);
-                        }
-                    });
-
-                    const playerDeathsHtml = PLAYERS.map(player => `
-                <span class="inline-flex items-center gap-1 bg-red-50 border border-red-200 px-2 py-0.5 rounded text-[11px]">
-                    <span class="font-bold text-gray-700">${player}:</span>
-                    <span class="font-extrabold text-red-700">${deathCounts[player] || 0} ☠️</span>
-                </span>
-            `).join(' ');
-
-                    let statusBadge = `<span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Laufend 🎮</span>`;
-                    if (run.is_finished) {
-                        statusBadge = (run.outcome === 'ERFOLGREICH' || run.outcome === 'WON')
-                            ? `<span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Champ 🏆</span>`
-                            : `<span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full font-bold text-[10px]">Wipe ☠️</span>`;
+                historyRuns = runs.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? ''), undefined, { numeric: true, sensitivity: 'base' }));
+                const encounters = new Map();
+                for (const { run_id, route_name, status } of catches || []) {
+                    if (!encounters.has(run_id)) {
+                        encounters.set(run_id, {
+                            total: new Set(), alive: new Set(), dead: new Set(), failed: new Set()
+                        });
                     }
+                    const stats = encounters.get(run_id);
+                    stats.total.add(route_name);
+                    if (status === 'ALIVE' || status === 'BOX') stats.alive.add(route_name);
+                    if (status === 'DEAD') stats.dead.add(route_name);
+                    if (status === 'FAILED') stats.failed.add(route_name);
+                }
 
-                    // Orden Badges rendern
-                    const runBadges = run.badges || [];
-                    const badgesHtml = KANTO_BADGES.map(badge => {
-                        const hasBadge = runBadges.includes(badge.id);
-                        return `<div class="inline-block ${hasBadge ? 'opacity-100' : 'opacity-20 grayscale'}" title="${badge.name}">${badge.svg}</div>`;
-                    }).join('');
+                const summaries = historyRuns.map(run => {
+                    const id = escapeHtml(String(run.id));
+                    const title = escapeHtml(String(run.title ?? 'Run'));
+                    const end = run.enddate ? formatDateToGerman(run.enddate) : (run.is_finished ? '–' : 'läuft...');
+                    const period = escapeHtml(`${formatDateToGerman(run.startdate)} – ${end}`);
+                    const badges = (run.badges || []).length;
+                    const stats = encounters.get(run.id);
+                    const counts = catchesError || !Array.isArray(catches)
+                        ? 'Encounter-Statistiken konnten nicht geladen werden.'
+                        : `Encounters: ${stats?.total.size ?? 0} · Alive / Box: ${stats?.alive.size ?? 0} · Dead: ${stats?.dead.size ?? 0} · Failed: ${stats?.failed.size ?? 0}`;
 
-                    // Top 4 & Champ Badges rendern
-                    const runTop4 = run.top4_badges || [];
-                    const top4Html = KANTO_TOP4.map(member => {
-                        const hasTop4 = runTop4.includes(member.id);
-                        return `<div class="inline-block ${hasTop4 ? 'opacity-100' : 'opacity-20 grayscale'}" title="${member.name}">${member.svg}</div>`;
-                    }).join('');
+                    let status = 'Laufend';
+                    let color = 'bg-blue-100 text-blue-800';
+                    if (run.is_finished) {
+                        const outcome = String(run.outcome ?? '').trim();
+                        if (outcome === 'WIPE') {
+                            status = 'Wipe';
+                            color = 'bg-red-100 text-red-800';
+                        } else if (outcome === 'ERFOLGREICH' || outcome === 'WON') {
+                            status = 'Champ';
+                            color = 'bg-green-100 text-green-800';
+                        } else {
+                            status = outcome || 'Abgeschlossen';
+                            color = 'bg-gray-100 text-gray-700';
+                        }
+                    }
+                    const statusBadge = `<span class="inline-block max-w-full rounded-full px-2 py-0.5 text-xs font-semibold [overflow-wrap:anywhere] ${color}">${escapeHtml(status)}</span>`;
+                    return { id, title, period, badges, counts, statusBadge };
+                });
 
-                    // NEU: Zeitraum Text generieren
-                    const zeitraumText = `${formatDateToGerman(run.startdate)} - ${run.enddate ? formatDateToGerman(run.enddate) : 'läuft...'}`;
-
-                    return `
-                <tr class="hover:bg-gray-50 transition border-b border-gray-100">
-                    <td class="py-3 px-4 font-bold text-gray-900">${escapeHtml(String(run.title ?? ''))}</td>
-                    <td class="py-3 px-4 text-gray-600 font-medium">${escapeHtml(zeitraumText)}</td>
-                    <td class="py-3 px-4">${statusBadge}</td>
-                    <td class="py-3 px-4">
-                        <div class="flex items-center gap-1">
-                            ${badgesHtml}
-                            <span class="ml-1 text-[11px] font-extrabold text-gray-500">(${runBadges.length}/8)</span>
+                notice.textContent = '';
+                tbody.innerHTML = summaries.map(({ id, title, period, badges, statusBadge }) => `
+                    <tr data-history-run="${id}" class="cursor-pointer border-b border-gray-100 hover:bg-blue-50 focus-within:bg-blue-50">
+                        <td class="p-3">
+                            <button type="button" class="text-left font-semibold text-blue-800 underline underline-offset-2 [overflow-wrap:anywhere]">${title}</button>
+                        </td>
+                        <td class="p-3 text-gray-600">${period}</td>
+                        <td class="p-3">${badges} / 8</td>
+                        <td class="p-3">${statusBadge}</td>
+                    </tr>
+                `).join('');
+                cards.innerHTML = summaries.map(({ id, title, period, badges, counts, statusBadge }) => `
+                    <details class="rounded-lg border border-gray-200">
+                        <summary class="grid min-h-11 cursor-pointer grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg p-3 hover:bg-gray-50">
+                            <span class="space-y-1">
+                                <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span class="min-w-0 font-semibold text-gray-900 [overflow-wrap:anywhere]">${title}</span>
+                                    ${statusBadge}
+                                </span>
+                                <span class="block text-xs text-gray-600">${period}</span>
+                            </span>
+                            <span aria-hidden="true" class="history-chevron text-gray-600">▾</span>
+                        </summary>
+                        <div class="space-y-2 border-t border-gray-200 p-3 text-sm text-gray-700">
+                            <p><span class="font-semibold">Orden:</span> ${badges} / 8</p>
+                            <p>${counts}</p>
+                            <button type="button" data-history-run="${id}" class="tracker-control bg-blue-700 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-800">Run ansehen</button>
                         </div>
-                    </td>
-                    <td class="py-3 px-4">
-                        <div class="flex items-center gap-1">
-                            ${top4Html}
-                            <span class="ml-1 text-[11px] font-extrabold text-gray-500">(${runTop4.length}/5)</span>
-                        </div>
-                    </td>
-                    <td class="py-3 px-4">
-                        <div class="flex items-center gap-1.5">
-                            <span class="bg-blue-50 text-blue-700 border border-blue-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Encounters">E: ${encounterCount}</span>
-                            <span class="bg-green-50 text-green-700 border border-green-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Alive / Box">A: ${aliveCount}</span>
-                            <span class="bg-red-50 text-red-700 border border-red-200 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Dead">D: ${deadCount}</span>
-                            <span class="bg-gray-100 text-gray-600 border border-gray-300 px-1.5 py-0.5 rounded font-bold text-[11px]" title="Failed">F: ${failedCount}</span>
-                        </div>
-                        ${encounterNames ? `<details class="mt-2">
-                            <summary class="cursor-pointer font-medium">Pokémon anzeigen</summary>
-                            <ul class="mt-1 space-y-1">${encounterNames}</ul>
-                        </details>` : ''}
-                    </td>
-                    <td class="py-3 px-4">
-                        <div class="flex items-center gap-1 flex-wrap">
-                            ${playerDeathsHtml}
-                        </div>
-                    </td>
-                </tr>
-            `;
-                }).join('');
-
-            } catch (err) {
-                console.error("Fehler beim Laden der Historie:", err);
-                // UPDATE: colspan="7"
-                tbody.innerHTML = '<tr><td colspan="7" class="py-4 text-center text-red-500">Fehler beim Laden der Historie.</td></tr>';
+                    </details>
+                `).join('');
+            } catch (error) {
+                console.error('Fehler beim Laden der Historie:', error);
+                notice.textContent = 'Fehler beim Laden der Historie.';
             }
         }
+
 
         function getCurrentFormattedDateTime() {
             const now = new Date();
@@ -1270,7 +1268,7 @@
             await showRuns();
         }
 
-        async function showRuns() {
+        function renderRunOptions() {
             const select = document.getElementById('run-select');
             select.innerHTML = '';
 
@@ -1281,15 +1279,24 @@
                 opt.textContent = `${run.title}${statusTag}`;
                 select.appendChild(opt);
             });
+        }
 
-            if (!loadedRuns.some(run => run.id === currentRunId)) {
-                currentRunId = loadedRuns[0].id;
-            }
-            select.value = currentRunId;
-            select.onchange = (e) => {
-                currentRunId = loadedRuns.find(run => String(run.id) === e.target.value)?.id;
-                loadRoutesAndCatches();
-            };
+        async function showRuns() {
+            renderRunOptions();
+            const select = document.getElementById('run-select');
+            select.onchange = (event) => selectRun(event.target.value);
+            await selectRun(loadedRuns.find(run => run.id === currentRunId)?.id ?? loadedRuns[0].id);
+        }
+
+        async function selectRun(value) {
+            const run = loadedRuns.find(item => String(item.id) === String(value));
+            if (!run) return;
+            currentRunId = run.id;
+            document.getElementById('run-select').value = run.id;
+            displayedRoutes = undefined;
+            document.getElementById('routes-container').textContent = 'Lade Fänge...';
+            document.getElementById('death-counter-bar').innerHTML = '';
+            renderSelectedRun(run);
             await loadRoutesAndCatches();
         }
 
@@ -1321,6 +1328,16 @@
             }
         }
 
+        function renderSelectedRun(run) {
+            currentRunData = run;
+            currentRunBadges = run.badges || [];
+            currentRunTop4 = run.top4_badges || [];
+            updateRunLockState();
+            updateRunDatesUI();
+            renderBadges();
+            renderTop4();
+        }
+
         async function loadRoutesAndCatches() {
             const runId = currentRunId;
             if (!runId) return;
@@ -1328,15 +1345,9 @@
 
             const { data: runData } = await _supabase.from('runs').select('*').eq('id', runId).single();
             if (currentRunId !== runId) return;
-            currentRunData = runData || loadedRuns.find(run => run.id === runId);
-            if (!currentRunData) return;
-            currentRunBadges = currentRunData.badges || [];
-            currentRunTop4 = currentRunData.top4_badges || [];
-
-            updateRunLockState();
-            updateRunDatesUI();
-            renderBadges();
-            renderTop4();
+            const run = runData || loadedRuns.find(item => item.id === runId);
+            if (!run) return;
+            renderSelectedRun(run);
 
             const [{ data: catches, error }] = await Promise.all([
                 _supabase.from('catches').select('*').eq('run_id', runId),
