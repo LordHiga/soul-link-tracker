@@ -230,12 +230,12 @@
                     <div class="flex min-w-0 flex-wrap items-center gap-2">
                         <input id="route-search" type="search" aria-label="Routen suchen" placeholder="Route suchen"
                             autocomplete="off" class="min-w-0 max-w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
-                        <label
-                            class="flex items-center space-x-2 text-sm font-medium text-gray-700 cursor-pointer bg-white px-3 py-2 rounded-lg border border-gray-300 shadow-sm">
-                            <input type="checkbox" id="show-all-checkbox" onchange="loadRoutesAndCatches()"
-                                class="rounded text-blue-600 focus:ring-blue-500 w-4 h-4">
-                            <span>Alle Routen anzeigen</span>
-                        </label>
+                        <select id="route-view" aria-label="Routenansicht"
+                            class="max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700">
+                            <option value="standard">Standard</option>
+                            <option value="all">Alle Routen</option>
+                            <option value="active">Alle aktiven</option>
+                        </select>
                     </div>
                 </div>
 
@@ -345,11 +345,13 @@
 
                 <p id="pokemon-save-error" class="hidden text-sm text-red-700" role="alert"></p>
                 <div class="flex space-x-3 pt-2">
-                    <button type="button" onclick="closeModal()"
+                    <button id="pokemon-cancel-btn" type="button" onclick="closeModal()"
                         class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
                     <button id="pokemon-save-btn" type="submit"
                         class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
                 </div>
+                <button id="pokemon-remove-btn" type="button" hidden
+                    class="w-full rounded-lg border border-red-200 p-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">Pokémon entfernen</button>
             </form>
         </div>
     </div>
@@ -582,9 +584,9 @@
                 await savePokemonData();
             });
             document.getElementById('poke-name-input').addEventListener('input', () => showPokemonSaveError());
-            document.getElementById('route-search').addEventListener('input', () => {
-                if (displayedRoutes && displayedRoutes.runId === currentRunId) renderRoutes(displayedRoutes.routesMap);
-            });
+            document.getElementById('pokemon-remove-btn').addEventListener('click', removePokemonCatch);
+            document.getElementById('route-search').addEventListener('input', refreshRouteView);
+            document.getElementById('route-view').addEventListener('change', refreshRouteView);
             document.getElementById('routes-container').addEventListener('click', (e) => {
                 const button = e.target.closest('button[data-catch-player]');
                 if (!button || displayedRoutes?.runId !== currentRunId) return;
@@ -1229,18 +1231,20 @@
             }
 
             const routesMap = Object.create(null);
+            const duplicateRoutes = new Set();
             KANTO_ROUTES.forEach(r => routesMap[r] = Object.create(null));
 
             if (catches) {
                 catches.forEach(c => {
                     if (routesMap[c.route_name] && PLAYERS.includes(c.player_name)) {
+                        if (routesMap[c.route_name][c.player_name]) duplicateRoutes.add(c.route_name);
                         routesMap[c.route_name][c.player_name] = c;
                     }
                 });
             }
 
             renderDeathCounter(catches || []);
-            renderRoutes(routesMap);
+            renderRoutes(routesMap, duplicateRoutes);
         }
 
         function renderBadges() {
@@ -1439,18 +1443,25 @@
             `;
         }
 
-        function renderRoutes(routesMap) {
-            const container = document.getElementById('routes-container');
-            displayedRoutes = { runId: currentRunId, routesMap };
+        function refreshRouteView() {
+            if (displayedRoutes && displayedRoutes.runId === currentRunId) {
+                renderRoutes(displayedRoutes.routesMap, displayedRoutes.duplicateRoutes);
+            }
+        }
 
-            const showAll = document.getElementById('show-all-checkbox').checked;
+        function renderRoutes(routesMap, duplicateRoutes = new Set()) {
+            const container = document.getElementById('routes-container');
+            displayedRoutes = { runId: currentRunId, routesMap, duplicateRoutes };
+
+            const view = document.getElementById('route-view').value;
             const search = (document.getElementById('route-search').value || '').trim().toLowerCase();
             const isFinished = currentRunData && currentRunData.is_finished;
             let routesToDisplay = KANTO_ROUTES;
 
-            if (search) {
-                routesToDisplay = KANTO_ROUTES.filter(route => route.toLowerCase().includes(search));
-            } else if (!showAll) {
+            if (view === 'active') {
+                routesToDisplay = KANTO_ROUTES.filter(route => !duplicateRoutes.has(route)
+                    && PLAYERS.every(player => routesMap[route]?.[player]?.status === 'ALIVE'));
+            } else if (view !== 'all' && !search) {
                 const activeRoutes = KANTO_ROUTES.filter(routeName => {
                     const playersData = routesMap[routeName] || {};
                     return PLAYERS.some(player => playersData[player]);
@@ -1468,8 +1479,14 @@
                 routesToDisplay = KANTO_ROUTES.filter(r => combinedSet.has(r));
             }
 
+            if (search) routesToDisplay = routesToDisplay.filter(route => route.toLowerCase().includes(search));
             if (!routesToDisplay.length) {
-                container.innerHTML = '<p class="text-sm text-gray-600" role="status">Keine passende Route gefunden.</p>';
+                const message = search ? 'Keine passende Route gefunden.' : 'Keine vollständigen aktiven Soul Links vorhanden.';
+                const notice = document.createElement('p');
+                notice.className = 'text-sm text-gray-600';
+                notice.setAttribute('role', 'status');
+                notice.textContent = message;
+                container.replaceChildren(notice);
                 return;
             }
 
@@ -1559,6 +1576,7 @@
             document.getElementById('modal-title').textContent = `${player} auf ${route}`;
             document.getElementById('poke-name-input').value = originalName;
             document.getElementById('poke-status-input').value = existingCatch?.status ?? 'ALIVE';
+            document.getElementById('pokemon-remove-btn').hidden = !existingCatch?.id;
 
             const killerSelect = document.getElementById('poke-killer-input');
             killerSelect.innerHTML = '<option value="">Bitte wählen...</option>' + PLAYERS.map(p => `<option value="${p}" ${p === existingCatch?.killed_by ? 'selected' : ''}>${p}</option>`).join('');
@@ -1589,6 +1607,62 @@
             element.textContent = message;
             if (message) element.classList.remove('hidden');
             else element.classList.add('hidden');
+        }
+
+        async function removePokemonCatch() {
+            const editor = catchEditor;
+            const catchId = editor?.existingCatch?.id;
+            if (savingCatch || !catchId || currentRunData?.is_finished) return;
+            const { runId, player, route, originalName } = editor;
+            if (runId !== currentRunId) {
+                showPokemonSaveError('Der ausgewählte Run hat sich geändert. Öffne den Fang erneut.');
+                return;
+            }
+            if (!window.confirm(`${originalName} von ${player} auf ${route} unwiderruflich entfernen? Die Partner-Fänge bleiben erhalten.`)) return;
+
+            const buttons = ['pokemon-remove-btn', 'pokemon-save-btn', 'pokemon-cancel-btn']
+                .map(id => document.getElementById(id));
+            savingCatch = true;
+            buttons.forEach(button => { button.disabled = true; });
+            showPokemonSaveError();
+            try {
+                const { data: run, error: runError } = await _supabase.from('runs').select('is_finished').eq('id', runId).single();
+                if (catchEditor !== editor || currentRunId !== runId) return;
+                if (runError || !run) {
+                    showPokemonSaveError('Der Run-Status konnte nicht geprüft werden.');
+                    return;
+                }
+                if (run.is_finished) {
+                    showPokemonSaveError('Abgeschlossene Runs sind schreibgeschützt.');
+                    return;
+                }
+
+                const { data, error } = await _supabase.from('catches').delete()
+                    .eq('id', catchId).eq('run_id', runId).select('id').maybeSingle();
+                if (error) {
+                    if (catchEditor === editor) showPokemonSaveError('Der Fang konnte nicht entfernt werden.');
+                    return;
+                }
+                if (data?.id !== catchId) {
+                    if (catchEditor === editor) showPokemonSaveError('Die Löschung wurde nicht bestätigt. Lade die Route neu und versuche es erneut.');
+                    return;
+                }
+            } catch {
+                if (catchEditor === editor) showPokemonSaveError('Der Fang konnte nicht entfernt werden.');
+                return;
+            } finally {
+                savingCatch = false;
+                buttons.forEach(button => { button.disabled = false; });
+            }
+
+            if (catchEditor === editor) closeModal();
+            if (currentRunId === runId) {
+                try {
+                    await loadRoutesAndCatches();
+                } catch {
+                    alert('Der Fang wurde entfernt. Die Übersicht konnte nicht neu geladen werden.');
+                }
+            }
         }
 
         async function savePokemonData() {

@@ -38,11 +38,14 @@ function caught(id, name, fields = {}) {
 }
 
 async function setup({ result = { data: fixture() }, initialCatches = [], storage = browserStorage(), loggedIn = true,
-    primaryUpdateResult } = {}) {
+    primaryUpdateResult, deleteResult, confirmDelete = true } = {}) {
     const elements = new Map();
     const writes = [];
     const requests = [];
     const reports = [];
+    const deletions = [];
+    const confirmations = [];
+    const teamReads = [];
     let start;
     const runs = [{ id: runId, title: 'Test-Run', is_finished: false }];
     let catalogResult = result;
@@ -77,6 +80,7 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
             const filters = {};
             let columns;
             let update;
+            let deleting = false;
             const query = {
                 select(value) { columns = value; return query; },
                 order(column) {
@@ -92,7 +96,7 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                     return catalogResult;
                 },
                 async single() {
-                    if (table !== 'catches') return { data: runs.find(run => run.id === filters.id) };
+                    if (table !== 'catches') return { data: runs.filter(run => run.id === filters.id).map(run => ({ ...run }))[0] };
                     assert.equal(columns, 'id');
                     writes.push(update);
                     if (primaryUpdateResult) return primaryUpdateResult;
@@ -108,6 +112,19 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                     return {};
                 },
                 update(values) { update = values; return query; },
+                delete() { deleting = true; return query; },
+                async maybeSingle() {
+                    assert.equal(table, 'catches');
+                    assert.equal(deleting, true);
+                    assert.equal(columns, 'id');
+                    deletions.push({ ...filters });
+                    if (deleteResult) return deleteResult;
+                    const index = catches.findIndex(record => Object.entries(filters)
+                        .every(([key, value]) => record[key] === value));
+                    if (index === -1) return { data: null };
+                    const [record] = catches.splice(index, 1);
+                    return { data: { id: record.id } };
+                },
                 then(resolve, reject) {
                     if (table === 'catches' && update) {
                         writes.push(update);
@@ -126,10 +143,14 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
 
     const context = vm.createContext({
         supabase: { createClient: () => client },
-        window: { addEventListener: (event, callback) => { if (event === 'DOMContentLoaded') start = callback; } },
-        document: { getElementById: element, createElement: () => ({}) },
+        window: {
+            addEventListener: (event, callback) => { if (event === 'DOMContentLoaded') start = callback; },
+            confirm(message) { confirmations.push(message); return confirmDelete; }
+        },
+        document: { getElementById: element, createElement: () => ({ setAttribute() {} }) },
         console: { warn: (_message, id) => reports.push(id), error: console.error },
         AbortSignal, localStorage: storage,
+        teamReads,
         testCatalogModule: await catalogModule,
         fetch: () => assert.fail('Pokémon JSON must not be requested from PokéAPI')
     });
@@ -137,7 +158,8 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
     const run = code => vm.runInContext(code, context);
     run('pokemonCatalogModule = testCatalogModule');
     return {
-        run, element, requests, writes, catches, reports, start: () => start(),
+        run, element, requests, writes, catches, reports, deletions, confirmations, teamReads, start: () => start(),
+        finishRun() { runs[0].is_finished = true; },
         setCatalogResult(value) { catalogResult = value; },
         async open(record) {
             context.editRecord = record;
@@ -261,7 +283,7 @@ test('route search is local, finds hidden routes, and restores the standard view
     }
     input.value = 'Nicht vorhandene Route';
     input.dispatch('input');
-    assert.match(routes.innerHTML, /Keine passende Route gefunden/);
+    assert.match(routes.children[0].textContent, /Keine passende Route gefunden/);
     input.value = '';
     input.dispatch('input');
     assert.equal(routes.innerHTML, standardView);
@@ -269,6 +291,107 @@ test('route search is local, finds hidden routes, and restores the standard view
 
 const boxedPartner = caught(1, 'Bisasam', { id: 'partner-1', player_name: 'Eike', status: 'BOX' });
 const deadPartner = caught(5, 'Glutexo', { id: 'partner-2', player_name: 'Ruffy', status: 'DEAD', killed_by: 'Eike' });
+
+test('removes only the confirmed catch by ID, blocks repeated clicks, and reloads catches and team', async () => {
+    const original = caught(4, oldName);
+    const app = await setup({ initialCatches: [original, boxedPartner, deadPartner] });
+    await app.start();
+    app.run('teamUi = { select(id) { teamReads.push(id); } }');
+    await app.open();
+    assert.equal(app.element('pokemon-remove-btn').hidden, true);
+    await app.open(original);
+    const button = app.element('pokemon-remove-btn');
+    assert.equal(button.hidden, false);
+    const removing = button.dispatch('click');
+    assert.equal(button.disabled, true);
+    assert.equal(app.element('pokemon-save-btn').disabled, true);
+    assert.equal(app.element('pokemon-modal').classList.contains('hidden'), false);
+    await Promise.all([removing, button.dispatch('click'), app.run('savePokemonData()')]);
+    assert.deepEqual(app.deletions, [{ id: original.id, run_id: runId }]);
+    assert.deepEqual(app.catches, [boxedPartner, deadPartner]);
+    assert.deepEqual(app.writes, []);
+    assert.equal(app.confirmations.length, 1);
+    assert.match(app.confirmations[0], /Glumanda von Higa auf Route 1.*Partner-Fänge bleiben erhalten/);
+    assert.equal(app.element('pokemon-modal').classList.contains('hidden'), true);
+    assert.deepEqual(app.teamReads, [runId]);
+    assert.doesNotMatch(app.element('routes-container').innerHTML, /Glumanda/);
+});
+
+test('a failed or unconfirmed deletion keeps the editor open and shows an error', async () => {
+    const original = caught(4, oldName);
+    for (const deleteResult of [{ error: { code: '42501' } }, { data: null }]) {
+        const app = await setup({ initialCatches: [original], deleteResult });
+        await app.start();
+        await app.open(original);
+        await app.element('pokemon-remove-btn').dispatch('click');
+        assert.deepEqual(app.catches, [original]);
+        assert.equal(app.deletions.length, 1);
+        assert.equal(app.element('pokemon-modal').classList.contains('hidden'), false);
+        assert.equal(app.element('pokemon-remove-btn').disabled, false);
+        assert.match(app.element('pokemon-save-error').textContent, /nicht entfernt|nicht bestätigt/);
+    }
+});
+
+test('cancelled confirmation and completed runs never send a delete', async () => {
+    const original = caught(4, oldName);
+    const cancelled = await setup({ initialCatches: [original], confirmDelete: false });
+    await cancelled.start();
+    await cancelled.open(original);
+    await cancelled.element('pokemon-remove-btn').dispatch('click');
+    assert.equal(cancelled.confirmations.length, 1);
+    assert.deepEqual(cancelled.deletions, []);
+
+    const finished = await setup({ initialCatches: [original] });
+    await finished.start();
+    await finished.open(original);
+    finished.finishRun();
+    await finished.element('pokemon-remove-btn').dispatch('click');
+    assert.match(finished.element('pokemon-save-error').textContent, /schreibgeschützt/);
+    assert.deepEqual(finished.deletions, []);
+    finished.run('closeModal()');
+    await finished.run('loadRoutesAndCatches()');
+    await finished.open(original);
+    assert.equal(finished.element('pokemon-modal').classList.contains('hidden'), true);
+});
+
+test('all three route views combine with search and restore their results without network reads', async () => {
+    const group = (routeName, statuses) => statuses.map((status, index) => caught(4, oldName, {
+        id: `${routeName}-${index}`, route_name: routeName, player_name: ['Higa', 'Eike', 'Ruffy'][index], status
+    }));
+    const initialCatches = [
+        ...group('Route 1', ['ALIVE', 'ALIVE', 'ALIVE']),
+        ...group('Route 2', ['ALIVE', 'BOX', 'ALIVE']),
+        ...group('Route 3', ['DEAD', 'ALIVE', 'ALIVE']),
+        ...group('Route 4', ['ALIVE', 'ALIVE', 'FAILED']),
+        ...group('Route 5', ['ALIVE', 'ALIVE']),
+        ...group('Route 6', ['ALIVE', 'ALIVE', 'ALIVE']),
+        caught(4, oldName, { id: 'duplicate', route_name: 'Route 6', status: 'BOX' })
+    ];
+    const app = await setup({ initialCatches });
+    await app.start();
+    app.run("_supabase.from = () => { throw new Error('Unexpected route filter request'); }");
+    const view = app.element('route-view');
+    const search = app.element('route-search');
+    const routes = app.element('routes-container');
+    const setSearch = query => { search.value = query; search.dispatch('input'); };
+    const names = () => Array.from(routes.innerHTML.matchAll(/📍 ([^<]+)</g), match => match[1]);
+    for (const mode of ['standard', 'all', 'active']) {
+        view.value = mode;
+        view.dispatch('change');
+        const beforeSearch = names();
+        assert.ok(beforeSearch.includes('Route 1'));
+        if (mode === 'active') assert.deepEqual(beforeSearch, ['Route 1']);
+        else for (const name of ['Route 2', 'Route 3', 'Route 4', 'Route 5', 'Route 6']) assert.ok(beforeSearch.includes(name));
+        assert.equal(beforeSearch.includes('Route 23'), mode === 'all');
+        setSearch('rOuTe 23');
+        if (mode === 'active') assert.match(routes.children[0].textContent, /Keine passende Route/);
+        else assert.deepEqual(names(), ['Route 23']);
+        setSearch('');
+        assert.deepEqual(names(), beforeSearch);
+        assert.equal(view.value, mode);
+    }
+    assert.deepEqual(app.catches, initialCatches);
+});
 
 test('renaming a catch or adding an ALIVE catch does not overwrite partner status or death attribution', async () => {
     for (const original of [caught(4, oldName), undefined]) {

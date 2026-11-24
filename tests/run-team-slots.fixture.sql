@@ -3,11 +3,15 @@ create role anon;
 create role authenticated;
 set default_transaction_isolation = 'read committed';
 
+create schema auth;
+create function auth.role() returns text language sql stable as $$ select current_user::text $$;
+grant usage on schema auth to anon, authenticated;
+
 create function public.team_fixture_run(n integer) returns uuid language sql immutable as $$
     select ('00000000-0000-4000-8000-' || lpad(n::text, 12, '0'))::uuid
 $$;
 
-create table public.runs (id uuid primary key, is_finished boolean not null default false);
+create table public.runs (id uuid primary key, is_finished boolean default false);
 create table public.catches (
     id uuid default gen_random_uuid() primary key,
     run_id uuid not null references public.runs(id) on delete cascade,
@@ -30,10 +34,21 @@ create temporary table original_runs as select * from public.runs;
 
 \ir ../supabase/run_team_slots.sql
 
-grant select, update on public.runs to authenticated;
-grant select, insert, update on public.catches to authenticated;
+grant select, update, delete on public.runs to authenticated;
+grant select, insert, update, delete on public.catches to authenticated;
 -- Deliberately permissive fixture to exercise the anonymous trigger guard too.
-grant select, update on public.catches to anon;
+grant select, update, delete on public.catches to anon;
+alter table public.runs enable row level security;
+alter table public.catches enable row level security;
+create policy fixture_authenticated_runs on public.runs for all to authenticated
+    using (auth.role() = 'authenticated'::text);
+create policy "Erlaube alles für authentifizierte Nutzer" on public.catches for all to authenticated
+    using (auth.role() = 'authenticated'::text);
+create policy fixture_anon_select on public.catches for select to anon using (true);
+create policy fixture_anon_update on public.catches for update to anon using (true);
+
+\ir ../supabase/catches_delete_open_run.sql
+\ir ../supabase/catches_delete_open_run.sql
 
 create function public.team_fixture_assert(ok boolean, description text)
 returns void language plpgsql as $$
@@ -88,6 +103,69 @@ select public.team_fixture_assert(not exists (
     union all
     (select * from original_runs except select * from public.runs)
 ), 'migration, initialization and manual changes preserve all existing runs and catches');
+
+begin;
+set local role authenticated;
+select public.team_fixture_assert(exists (
+    select 1 from public.catches where run_id = public.team_fixture_run(20)
+), 'authenticated can still read catches from a finished run');
+with removed as (
+    delete from public.catches where run_id = public.team_fixture_run(20) returning id
+)
+select public.team_fixture_assert(count(*) = 0,
+    'authenticated cannot delete catches from a finished run') from removed;
+with added as (
+    insert into public.catches (run_id, route_name, player_name, status)
+    values (public.team_fixture_run(20), 'RLS insert probe', 'Higa', 'ALIVE') returning id
+)
+select public.team_fixture_assert(count(*) = 1, 'existing INSERT policy remains effective') from added;
+with edited as (
+    update public.catches set status = 'BOX' where run_id = public.team_fixture_run(20)
+        and route_name = 'RLS insert probe' returning id
+)
+select public.team_fixture_assert(count(*) = 1, 'existing UPDATE policy remains effective') from edited;
+set local role anon;
+with removed as (
+    delete from public.catches where run_id = public.team_fixture_run(10) returning id
+)
+select public.team_fixture_assert(count(*) = 0, 'anon cannot delete from an open run') from removed;
+rollback;
+
+begin;
+insert into public.runs values (public.team_fixture_run(30), null);
+insert into public.catches (run_id, route_name, player_name, status)
+values (public.team_fixture_run(30), 'Legacy route', 'Higa', 'ALIVE');
+set local role authenticated;
+with removed as (
+    delete from public.catches where run_id = public.team_fixture_run(30) returning id
+)
+select public.team_fixture_assert(count(*) = 1, 'legacy NULL run status is treated as open') from removed;
+rollback;
+
+begin;
+set local role authenticated;
+select id as removed_catch_id from public.catches
+where run_id = public.team_fixture_run(10) and route_name = 'Route A' and player_name = 'Higa' \gset
+select public.team_fixture_assert(exists (
+    select 1 from jsonb_array_elements(public.soul_link_team(public.team_fixture_run(10))->'slots') slot
+    where slot->>'route_name' = 'Route A'
+), 'the complete Soul Link occupies a slot before deleting a catch');
+with removed as (
+    delete from public.catches where id = :'removed_catch_id' and run_id = public.team_fixture_run(10) returning id
+)
+select public.team_fixture_assert(count(*) = 1 and bool_and(id = :'removed_catch_id'),
+    'authenticated catch deletion returns exactly the requested ID') from removed;
+select public.team_fixture_assert(not exists (
+    select 1 from jsonb_array_elements(public.soul_link_team(public.team_fixture_run(10))->'slots') slot
+    where slot->>'route_name' = 'Route A'
+), 'deleting one catch removes the now incomplete Soul Link from the team');
+reset role;
+with expected as (select * from original_catches where id <> :'removed_catch_id')
+select public.team_fixture_assert(not exists (
+    (select * from public.catches except all select * from expected)
+    union all (select * from expected except all select * from public.catches)
+), 'catch deletion preserves both partners and all other catches');
+rollback;
 
 insert into public.runs values (public.team_fixture_run(1), false), (public.team_fixture_run(2), false),
     (public.team_fixture_run(3), false), (public.team_fixture_run(4), false);
@@ -214,7 +292,9 @@ union all select 'slots', to_jsonb(s) from public.run_team_slots s where run_id 
 union all select 'initialized', to_jsonb(i) from soul_link_team_private.initialized i where run_id <> public.team_fixture_run(4)
 union all select 'exclusions', to_jsonb(e) from soul_link_team_private.exclusions e where run_id <> public.team_fixture_run(4);
 
+set role authenticated;
 delete from public.runs where id = public.team_fixture_run(4);
+reset role;
 select public.team_fixture_assert(not exists (
     select 1 from public.runs where id = public.team_fixture_run(4)
     union all select 1 from public.catches where run_id = public.team_fixture_run(4)
