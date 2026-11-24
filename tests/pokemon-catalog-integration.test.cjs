@@ -243,6 +243,30 @@ test('the shared catch form and overview show no Pokémon levels', async () => {
     assert.equal(app.writes.length, 0);
 });
 
+test('route search is local, finds hidden routes, and restores the standard view when cleared', async () => {
+    const app = await setup();
+    await app.start();
+    // Route 104 is a search fixture. The FireRed route list does not contain it.
+    app.run(`KANTO_ROUTES.push('Route 104'); _supabase.from = () => { throw new Error('Unexpected route search request'); }`);
+    const input = app.element('route-search');
+    const routes = app.element('routes-container');
+    const standardView = routes.innerHTML;
+    assert.doesNotMatch(standardView, /Geheimdungeon|Route 104/);
+
+    for (const [query, match] of [['  gEHEIMdUnGeOn  ', /Geheimdungeon/], ['104', /Route 104/]]) {
+        input.value = query;
+        input.dispatch('input');
+        assert.match(routes.innerHTML, match);
+        assert.doesNotMatch(routes.innerHTML, /Alabastia\/ Starter/);
+    }
+    input.value = 'Nicht vorhandene Route';
+    input.dispatch('input');
+    assert.match(routes.innerHTML, /Keine passende Route gefunden/);
+    input.value = '';
+    input.dispatch('input');
+    assert.equal(routes.innerHTML, standardView);
+});
+
 const boxedPartner = caught(1, 'Bisasam', { id: 'partner-1', player_name: 'Eike', status: 'BOX' });
 const deadPartner = caught(5, 'Glutexo', { id: 'partner-2', player_name: 'Ruffy', status: 'DEAD', killed_by: 'Eike' });
 
