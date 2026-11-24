@@ -66,6 +66,125 @@
             width: 100%;
             margin-top: 10px;
         }
+
+        :where(#app-screen, #pokemon-modal, #team-dialog, #new-run-modal, #finish-run-modal, #feedback-modal)
+        :is(button, select, input, textarea):focus-visible {
+            outline: 2px solid #2563eb;
+            outline-offset: 2px;
+        }
+
+        #app-screen header :is(button, select):focus-visible {
+            outline-color: #93c5fd;
+        }
+
+        :where(#app-screen, #pokemon-modal, #team-dialog) button:disabled {
+            cursor: not-allowed;
+        }
+
+        :root {
+            --tracker-control-height: 2.25rem;
+        }
+
+        .tracker-control, #team-controls :is(button, select) {
+            min-height: var(--tracker-control-height);
+            border-radius: 0.5rem;
+        }
+
+        #route-search, #route-view {
+            height: var(--tracker-control-height);
+            padding-block: 0;
+        }
+
+        #team-manage, #team-dialog button, #feedback-list-container button {
+            padding-inline: 0.625rem;
+        }
+
+        #team-controls [data-team-action="remove"]:not(:disabled):hover {
+            background-color: #fef2f2;
+        }
+
+        #team-controls :is([data-team-action="initialize"], [data-team-action="add"], [data-team-action="replace"]) {
+            background-color: #1d4ed8;
+            color: white;
+        }
+
+        #team-controls :is([data-team-action="initialize"], [data-team-action="add"], [data-team-action="replace"]):not(:disabled):hover {
+            background-color: #1e40af;
+        }
+
+        .progress-card {
+            min-width: 0;
+            line-height: 1.25;
+            overflow-wrap: anywhere;
+        }
+
+        .progress-card--pending svg {
+            filter: grayscale(1);
+            opacity: 0.65;
+        }
+
+        .progress-card.cursor-pointer:hover {
+            border-color: #9ca3af;
+        }
+
+        :is(#new-run-modal, #finish-run-modal, #feedback-modal) > div {
+            max-height: calc(100dvh - 2rem);
+            overflow-y: auto;
+        }
+
+        .catch-card {
+            gap: 0.5rem;
+            min-height: 5rem;
+        }
+
+        .catch-card--failed .catch-name {
+            text-decoration: line-through;
+        }
+
+        #team-grid > div > div {
+            align-content: center;
+            row-gap: 0.125rem;
+        }
+
+        @media (max-width: 767px) {
+            :root {
+                --tracker-control-height: 2.75rem;
+            }
+
+            #app-screen main {
+                padding-block: 1rem;
+            }
+
+            #view-feedback .feedback-toolbar {
+                flex-wrap: wrap;
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 1023px) {
+            #badges-bar .progress-card {
+                padding-inline: 1px;
+            }
+        }
+
+        @media (min-width: 768px) and (max-width: 1023px) {
+            #app-screen header button {
+                white-space: nowrap;
+            }
+
+            #run-select {
+                max-width: 18vw;
+            }
+
+            .catch-card {
+                padding-inline: 0.5rem;
+            }
+
+            .catch-card [data-catch-sprite] {
+                width: 2.25rem;
+                height: 2.25rem;
+            }
+        }
     </style>
 </head>
 
@@ -99,24 +218,24 @@
         <header class="bg-blue-950 text-white shadow-md">
             <div class="max-w-[1600px] mx-auto px-4 py-3 flex flex-col gap-3 md:flex-row md:justify-between md:items-center">
                 <div class="flex items-center space-x-3">
-                    <span class="text-xl font-bold">🛡️ SOUL LINK TRACKER</span>
+                    <span class="text-xl font-bold md:text-base lg:text-xl">🛡️ SOUL LINK TRACKER</span>
                 </div>
                 <div class="grid min-w-0 grid-cols-3 items-center gap-2 md:flex md:gap-4">
                     <div class="contents md:flex md:min-w-0 md:items-center md:gap-2">
                         <label for="run-select" class="text-sm text-gray-300">Run:</label>
                         <select id="run-select"
-                            class="col-span-2 min-w-0 bg-blue-900 text-white text-sm rounded px-2 py-1 border border-blue-700 outline-none md:max-w-[min(24rem,25vw)]"></select>
+                            class="tracker-control col-span-2 min-w-0 bg-blue-900 text-white text-sm px-2 py-1 border border-blue-700 outline-none md:max-w-[min(24rem,25vw)]"></select>
                         <button onclick="openNewRunModal()"
-                            class="bg-green-600 hover:bg-green-500 text-xs px-2 py-1.5 rounded font-bold transition">+
+                            class="tracker-control bg-green-700 hover:bg-green-600 text-xs px-2 py-1.5 font-semibold transition">+
                             Neuer Run</button>
                         <button id="finish-run-btn" onclick="openFinishRunModal()"
-                            class="bg-red-800 hover:bg-red-700 text-xs px-2 py-1.5 rounded font-bold transition text-white">
+                            class="tracker-control bg-red-800 hover:bg-red-700 text-xs px-2 py-1.5 font-semibold transition text-white">
                             🏁 Run beenden
                         </button>
                     </div>
                     <div class="hidden border-l border-blue-800 h-6 md:block"></div>
                     <button onclick="logout()"
-                        class="col-start-3 text-xs bg-red-600 hover:bg-red-500 px-3 py-1.5 rounded font-bold transition">Logout
+                        class="tracker-control col-start-3 border border-blue-400 text-xs hover:bg-blue-900 px-3 py-1.5 font-semibold transition">Logout
                         [x]</button>
                 </div>
             </div>
@@ -184,25 +303,25 @@
                     </div>
                     <div id="run-dates-action-container">
                         <button id="save-dates-btn" onclick="saveRunDates()"
-                            class="hidden bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold px-3 py-1.5 rounded transition">
+                            class="tracker-control hidden bg-blue-700 hover:bg-blue-800 text-white text-xs font-semibold px-3 py-1.5 transition">
                             💾 Daten speichern
                         </button>
                     </div>
                 </div>
 
-                <div id="badges-bar" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6">
+                <div id="badges-bar" class="bg-white p-3 sm:p-4 rounded-xl shadow-sm border border-gray-200 mb-4 sm:mb-6">
 
                     <div class="flex justify-between items-center mb-3">
-                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Erreichte Orden</span>
+                        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Erreichte Orden</span>
                         <span id="badge-count"
                             class="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">0 / 8</span>
                     </div>
-                    <div id="badges-container" class="grid grid-cols-4 sm:grid-cols-8 gap-2"></div>
+                    <div id="badges-container" class="grid grid-cols-4 gap-1.5 sm:grid-cols-8 sm:gap-2"></div>
 
-                    <hr class="my-4 border-gray-100">
+                    <hr class="my-3 sm:my-4 border-gray-200">
 
                     <div class="flex justify-between items-center mb-3">
-                        <span class="text-xs font-bold text-gray-400 uppercase tracking-wider">Top 4 & Champ</span>
+                        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wider">Top 4 & Champ</span>
                         <span id="top4-count"
                             class="text-xs font-bold text-purple-600 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">0
                             / 5</span>
@@ -211,11 +330,11 @@
 
                 </div>
 
-                <section aria-labelledby="team-heading" class="mb-6 rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
+                <section aria-labelledby="team-heading" class="mb-4 rounded-xl border border-gray-200 bg-white p-3 shadow-sm sm:mb-6 sm:p-4">
                     <div class="mb-2 flex items-center justify-between gap-2">
                         <h2 id="team-heading" class="text-lg font-bold text-gray-700">Aktuelles Team</h2>
                         <button id="team-manage" type="button" disabled
-                            class="rounded border border-gray-300 px-2 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40">Team verwalten</button>
+                            class="tracker-control border border-gray-300 py-1 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-40">Team verwalten</button>
                     </div>
                     <div class="mb-1 grid grid-cols-3 gap-1 text-center text-xs font-bold uppercase tracking-wider text-gray-600 sm:gap-2">
                         <span>Higa</span><span>Eike</span><span>Ruffy</span>
@@ -225,13 +344,13 @@
                     <button id="team-retry" type="button" hidden class="text-xs font-semibold text-blue-700 underline">Erneut laden</button>
                 </section>
 
-                <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
-                    <h2 class="text-xl font-bold text-gray-700">Routen-Übersicht</h2>
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h2 class="text-lg font-bold text-gray-700">Routen-Übersicht</h2>
                     <div class="flex min-w-0 flex-wrap items-center gap-2">
                         <input id="route-search" type="search" aria-label="Routen suchen" placeholder="Route suchen"
-                            autocomplete="off" class="min-w-0 max-w-full rounded-lg border border-gray-300 px-3 py-2 text-sm">
+                            autocomplete="off" class="tracker-control min-w-0 max-w-full border border-gray-300 px-3 py-2 text-sm">
                         <select id="route-view" aria-label="Routenansicht"
-                            class="max-w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700">
+                            class="tracker-control max-w-full border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700">
                             <option value="standard">Standard</option>
                             <option value="all">Alle Routen</option>
                             <option value="active">Alle aktiven</option>
@@ -244,7 +363,7 @@
 
             <!-- ANSICHT 2: RUN-HISTORIE (Tabelle) -->
             <div id="view-history" class="hidden">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
                     <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
                         📊 Übersicht aller Runs
                     </h2>
@@ -275,19 +394,19 @@
 
             <!-- ANSICHT 3: FEATURES & BUGS (Wunschliste & Filter) -->
             <div id="view-feedback" class="hidden">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-4">
+                    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
                         <div>
                             <h2 class="text-lg font-bold text-gray-800">💡 Feature-Wünsche & Bug-Reports</h2>
-                            <p class="text-xs text-gray-500">Hier können Vorschläge, gewünschte Anpassungen und Fehler
+                            <p class="text-sm text-gray-600">Hier können Vorschläge, gewünschte Anpassungen und Fehler
                                 eingetragen werden.</p>
                         </div>
                         <div
-                            class="flex items-center space-x-3 self-stretch sm:self-auto justify-between sm:justify-end">
+                            class="feedback-toolbar flex items-center gap-2 self-stretch sm:self-auto justify-between sm:justify-end">
                             <div class="flex items-center space-x-2">
                                 <label class="text-xs font-bold text-gray-500">Einstufung:</label>
                                 <select id="feedback-filter-type" onchange="loadFeedback()"
-                                    class="text-xs bg-gray-50 border border-gray-300 rounded-lg px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                                    class="tracker-control text-sm bg-gray-50 border border-gray-300 px-2.5 py-1.5 outline-none focus:ring-2 focus:ring-blue-500 font-medium">
                                     <option value="ALL">Alle Anzeigen</option>
                                     <option value="Feature">Nur Features 💡</option>
                                     <option value="Bug">Nur Bugs 🐛</option>
@@ -295,7 +414,7 @@
                                 </select>
                             </div>
                             <button onclick="openFeedbackModal()"
-                                class="bg-blue-600 hover:bg-blue-500 text-white text-xs px-4 py-2 rounded-lg font-bold transition">
+                                class="tracker-control shrink-0 bg-blue-700 hover:bg-blue-800 text-white text-sm px-3 py-2 font-semibold transition">
                                 + Eintrag erstellen
                             </button>
                         </div>
@@ -346,20 +465,20 @@
                 <p id="pokemon-save-error" class="hidden text-sm text-red-700" role="alert"></p>
                 <div class="flex space-x-3 pt-2">
                     <button id="pokemon-cancel-btn" type="button" onclick="closeModal()"
-                        class="w-1/2 bg-gray-300 hover:bg-gray-200 p-2 rounded-lg font-semibold transition">Abbrechen</button>
+                        class="tracker-control w-1/2 border border-gray-300 bg-white hover:bg-gray-50 p-2 font-semibold transition disabled:opacity-50">Abbrechen</button>
                     <button id="pokemon-save-btn" type="submit"
-                        class="w-1/2 bg-blue-600 hover:bg-blue-500 text-white p-2 rounded-lg font-semibold transition">Speichern</button>
+                        class="tracker-control w-1/2 bg-blue-700 hover:bg-blue-800 text-white p-2 font-semibold transition disabled:opacity-50">Speichern</button>
                 </div>
                 <button id="pokemon-remove-btn" type="button" hidden
-                    class="w-full rounded-lg border border-red-200 p-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">Pokémon entfernen</button>
+                    class="tracker-control w-full border border-red-200 p-2 text-sm font-semibold text-red-800 hover:bg-red-50 disabled:opacity-50">Pokémon entfernen</button>
             </form>
         </div>
     </div>
     <dialog id="team-dialog" aria-labelledby="team-dialog-heading"
         class="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl bg-white p-4 text-gray-800 shadow-xl backdrop:bg-black/50">
         <div class="mb-3 flex items-center justify-between gap-3">
-            <h2 id="team-dialog-heading" class="text-base font-bold">Team verwalten</h2>
-            <button id="team-close" type="button" class="rounded border px-2 py-1 text-xs">Schließen</button>
+            <h2 id="team-dialog-heading" class="text-lg font-bold">Team verwalten</h2>
+            <button id="team-close" type="button" class="tracker-control border border-gray-300 px-2 py-1 text-sm hover:bg-gray-50">Schließen</button>
         </div>
         <p id="team-dialog-notice" class="mb-2 text-sm text-gray-700" role="status"></p>
         <div id="team-controls"></div>
@@ -854,7 +973,7 @@
                             <p class="${descriptionClass}">${escapeHtml(item.description)}</p>
                         </div>
                         <button type="button" data-edit-feedback
-                            class="text-xs bg-white border border-gray-300 hover:bg-gray-100 px-3 py-1.5 rounded-lg font-semibold transition text-gray-700 self-end sm:self-center">
+                            class="tracker-control text-xs bg-white border border-gray-300 hover:bg-gray-100 py-1.5 font-semibold transition text-gray-700 self-end sm:self-center">
                             ✏️ Bearbeiten
                         </button>
                     </div>
@@ -1264,16 +1383,16 @@
                 if (!isFinished) {
                     badgeCard.onclick = () => toggleBadge(badge.id);
                 }
-                badgeCard.className = `flex flex-col items-center p-2 rounded-lg border transition-all duration-200 ${isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
+                badgeCard.className = `progress-card flex flex-col items-center p-1.5 sm:p-2 rounded-lg border transition-colors ${isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
                     } ${isUnlocked
-                        ? 'bg-amber-50 border-amber-300 shadow-sm scale-105'
-                        : 'bg-gray-50 border-gray-200 opacity-40 grayscale hover:opacity-70'
+                        ? 'bg-amber-50 border-amber-300 shadow-sm'
+                        : 'progress-card--pending bg-gray-50 border-gray-200'
                     }`;
 
                 badgeCard.innerHTML = `
                     <div class="mb-1">${badge.svg}</div>
-                    <span class="text-[10px] font-bold ${isUnlocked ? 'text-amber-900' : 'text-gray-500'}">${badge.name}</span>
-                    <span class="text-[8px] text-gray-400">${badge.leader}</span>
+                    <span class="text-[11px] font-semibold ${isUnlocked ? 'text-amber-900' : 'text-gray-700'}">${badge.name}</span>
+                    <span class="text-[11px] text-gray-600">${badge.leader}</span>
                 `;
 
                 container.appendChild(badgeCard);
@@ -1333,16 +1452,16 @@
                 if (!isFinished) {
                     badgeCard.onclick = () => toggleTop4(member.id);
                 }
-                badgeCard.className = `flex flex-col items-center p-2 rounded-lg border transition-all duration-200 ${isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
+                badgeCard.className = `progress-card flex flex-col items-center p-1.5 sm:p-2 rounded-lg border transition-colors ${isFinished ? 'cursor-not-allowed' : 'cursor-pointer'
                     } ${isUnlocked
-                        ? 'bg-purple-50 border-purple-300 shadow-sm scale-105'
-                        : 'bg-gray-50 border-gray-200 opacity-40 grayscale hover:opacity-70'
+                        ? 'bg-purple-50 border-purple-300 shadow-sm'
+                        : 'progress-card--pending bg-gray-50 border-gray-200'
                     }`;
 
                 badgeCard.innerHTML = `
             <div class="mb-1">${member.svg}</div>
-            <span class="text-[10px] font-bold ${isUnlocked ? 'text-purple-900' : 'text-gray-500'}">${member.name}</span>
-            <span class="text-[8px] text-gray-400">${member.leader}</span>
+            <span class="text-[11px] font-semibold ${isUnlocked ? 'text-purple-900' : 'text-gray-700'}">${member.name}</span>
+            <span class="text-[11px] text-gray-600">${member.leader}</span>
         `;
 
                 container.appendChild(badgeCard);
@@ -1493,7 +1612,7 @@
             container.innerHTML = routesToDisplay.map(routeName => {
                 const playersData = routesMap[routeName] || {};
                 let routeCard = `
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-4">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-gray-700 flex justify-between items-center">
                             <span>📍 ${escapeHtml(routeName)}</span>
                         </div>
@@ -1512,7 +1631,7 @@
                         } else if (catchInfo.status === 'BOX') {
                             statusColor = 'bg-yellow-50 text-yellow-700 border-yellow-200';
                         } else if (catchInfo.status === 'FAILED') {
-                            statusColor = 'bg-gray-100 text-gray-500 border-gray-300 line-through';
+                            statusColor = 'catch-card--failed bg-gray-100 text-gray-700 border-gray-300';
                         }
                         const id = Number(catchInfo.pokemon_id);
                         const spriteId = Number.isSafeInteger(id) && id > 0 ? id : 0;
@@ -1524,18 +1643,18 @@
                         ).join('');
 
                         const killerInfo = catchInfo.status === 'DEAD' && catchInfo.killed_by ?
-                            `<div class="text-[10px] text-red-600 font-bold">Schuld: ${escapeHtml(catchInfo.killed_by)}</div>` : '';
+                            `<div class="text-xs text-red-700 font-semibold">Schuld: ${escapeHtml(catchInfo.killed_by)}</div>` : '';
 
                         const editBtnHtml = isFinished ? '' : `
-                            <button ${buttonData} class="text-xs bg-white border border-gray-300 px-2 py-1 rounded shadow-sm hover:bg-gray-100">Ändern</button>
+                            <button ${buttonData} class="tracker-control shrink-0 text-xs font-semibold text-gray-700 bg-white border border-gray-300 px-2 py-1 hover:bg-gray-100">Ändern</button>
                         `;
 
                         content = `
-                            <div class="flex items-center space-x-3 p-3 rounded-lg border ${statusColor} my-2">
-                                <img src="${spriteUrl}" alt="${displayName}" class="w-12 h-12 shrink-0 object-contain" loading="lazy" data-catch-sprite>
+                            <div class="catch-card flex items-center p-2.5 sm:p-3 rounded-lg border ${statusColor}">
+                                <img src="${spriteUrl}" alt="${displayName}" class="w-10 h-10 lg:w-12 lg:h-12 shrink-0 object-contain" loading="lazy" data-catch-sprite>
                                 <div class="min-w-0 flex-1">
-                                    <div class="break-words font-bold text-sm">${displayName}</div>
-                                    ${typeBadges ? `<div class="my-1 flex flex-wrap gap-1">${typeBadges}</div>` : ''}
+                                    <div class="catch-name break-words font-semibold text-sm">${displayName}</div>
+                                    ${typeBadges ? `<div class="my-0.5 flex flex-wrap gap-1">${typeBadges}</div>` : ''}
                                     <div class="text-xs font-semibold">Status: ${escapeHtml(catchInfo.status)}</div>
                                     ${killerInfo}
                                 </div>
@@ -1546,19 +1665,19 @@
                         const addBtnHtml = isFinished ? `
                             <span class="text-xs text-gray-400 italic">Kein Eintrag</span>
                         ` : `
-                            <button ${buttonData} class="bg-gray-100 hover:bg-gray-200 text-gray-600 text-xs px-3 py-2 rounded-lg font-semibold transition">+ Pokémon hinzufügen</button>
+                            <button ${buttonData} class="tracker-control bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 font-semibold transition">+ Pokémon hinzufügen</button>
                         `;
 
                         content = `
-                            <div class="py-4 text-center">
+                            <div class="py-2 text-center">
                                 ${addBtnHtml}
                             </div>
                         `;
                     }
 
                     routeCard += `
-                        <div class="p-4">
-                            <div class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">${player}</div>
+                        <div class="p-3 lg:p-4">
+                            <div class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">${player}</div>
                             ${content}
                         </div>
                     `;
