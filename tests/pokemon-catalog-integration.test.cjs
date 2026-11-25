@@ -93,11 +93,19 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
             } : null } })
         },
         rpc(name, parameters) {
-            assert.equal(name, 'manage_route');
+            assert.ok(name === 'manage_route' || name === 'delete_route');
             routeWrites.push(parameters);
             return {
                 async abortSignal() {
                     if (rpcError) return { error: rpcError };
+                    if (name === 'delete_route') {
+                        const index = routes.findIndex(item => item.id === parameters.p_route_id);
+                        const [removed] = routes.splice(index, 1);
+                        for (const route of routes) {
+                            if (route.sort_position > removed.sort_position) route.sort_position--;
+                        }
+                        return {};
+                    }
                     const selected = routes.find(item => item.id === parameters.p_route_id);
                     const neighbor = routes.find(item => item.id === parameters.p_expected_neighbor_id);
                     if (parameters.p_action === 'add') {
@@ -396,7 +404,8 @@ test('loads all 58 routes in database order and reloads after each route managem
     assert.equal(app.routeReads.length, 6);
     assert.deepEqual(app.routeWrites.map(fields => fields.p_action), ['rename', 'move_up', 'move_down', 'add']);
     assert.equal(app.routeWrites[1].p_expected_neighbor_id, routeIdFor('Alabastia/ Starter'));
-    assert.doesNotMatch(list.innerHTML, /route:new-route-id|Löschen/);
+    assert.doesNotMatch(list.innerHTML, /route:new-route-id/);
+    assert.match(list.innerHTML, /data-route-delete="new-route-id"/);
 
     app.element('routes-container').dispatch('click', {
         target: { closest: () => ({ dataset: { catchRoute: 'new-route-id', catchPlayer: player } }) }
@@ -405,6 +414,45 @@ test('loads all 58 routes in database order and reloads after each route managem
     await app.run('savePokemonData()');
     assert.equal(app.writes[0].route_id, 'new-route-id');
     assert.equal(app.writes[0].route_name, 'route:new-route-id');
+});
+
+test('only added routes show a delete menu; cancellation, rejection and repeated clicks are safe', async () => {
+    const custom = { id: 'custom', name: 'Casino Evoli', legacy_key: 'route:custom', sort_position: 59 };
+    const historical = { id: 'historical', name: 'Altort', legacy_key: 'route:historical', sort_position: 60, is_legacy: true };
+    const routeRows = [...catalogRoutes, custom, historical];
+    const canceled = await setup({ routeRows, confirmDelete: false });
+    await canceled.start();
+    const click = (app, button) => app.element('route-editor-list').dispatch('click', { target: { closest: () => button } });
+    const remove = { dataset: { routeDelete: custom.id } };
+    const panel = { hidden: true };
+    const menu = {
+        dataset: { routeMenu: '' }, nextElementSibling: panel,
+        setAttribute: (name, value) => assert.deepEqual([name, value], ['aria-expanded', 'true'])
+    };
+    click(canceled, menu);
+    assert.equal(panel.hidden, false);
+    await click(canceled, remove);
+    assert.match(canceled.confirmations[0], /Casino Evoli/);
+    assert.deepEqual(canceled.routeWrites, []);
+
+    const app = await setup({ routeRows });
+    await app.start();
+    const list = app.element('route-editor-list');
+    assert.deepEqual([...list.innerHTML.matchAll(/data-route-delete="([^"]+)"/g)].map(match => match[1]), [custom.id]);
+    await click(app, { dataset: { routeDelete: routeIdFor(route) } });
+    assert.deepEqual(app.confirmations, []);
+    app.setRpcError({ code: '23503' });
+    await Promise.all([click(app, remove), click(app, remove)]);
+    assert.deepEqual(app.routeWrites.map(fields => fields.p_route_id), [custom.id]);
+    assert.match(app.element('routes-dialog-status').textContent, /Fängen oder einem Team/);
+    assert.match(list.innerHTML, /Casino Evoli/);
+    assert.equal(app.routeReads.length, 1);
+    app.setRpcError(undefined);
+    await click(app, remove);
+    assert.doesNotMatch(list.innerHTML, /Casino Evoli/);
+    assert.match(list.innerHTML, /Altort/);
+    assert.equal(app.routeReads.length, 2);
+    assert.deepEqual(app.writes, []);
 });
 
 test('route name drafts survive search and RPC failures; Escape discards and repeated submits are blocked', async () => {

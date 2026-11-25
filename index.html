@@ -200,7 +200,8 @@
         #routes-dialog > :not(fieldset), .route-editor-toolbar { flex-shrink: 0; }
         #route-editor-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
         #route-editor-search { width: 100%; }
-        .route-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .375rem; align-items: start; }
+        .route-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, auto); gap: .375rem; align-items: start; }
+        .route-editor-menu { grid-column: 1 / -1; justify-self: end; }
         .route-editor-form { display: flex; flex-wrap: wrap; gap: .375rem; min-width: 0; }
         .route-editor-form input { flex: 1 1 6rem; min-width: 0; }
         .route-editor-control { min-height: 2.75rem; }
@@ -1185,12 +1186,30 @@
                 if (route && name !== route.name) return saveRoute('rename', { p_route_id: id, p_name: name });
             });
             list.addEventListener('click', event => {
-                const button = event.target.closest('button[data-route-move]');
+                const button = event.target.closest('button[data-route-menu],button[data-route-delete],button[data-route-move]');
                 if (!button || button.disabled) return;
+                if (button.dataset.routeMenu !== undefined) {
+                    const panel = button.nextElementSibling;
+                    panel.hidden = !panel.hidden;
+                    button.setAttribute('aria-expanded', String(!panel.hidden));
+                    return;
+                }
+                if (button.dataset.routeDelete) {
+                    const route = routesSession?.byId.get(button.dataset.routeDelete);
+                    if (!isRouteDeletable(route) || routesSession.saving || routesSession.request || routesSession.error) return;
+                    if (window.confirm(`Encounter-Ort „${route.name}“ löschen? Das ist nur möglich, wenn er unbenutzt ist.`)) {
+                        return saveRoute('delete', { p_route_id: route.id });
+                    }
+                    return;
+                }
                 return saveRoute(button.dataset.routeMove, {
                     p_route_id: button.dataset.routeId, p_expected_neighbor_id: button.dataset.neighborId
                 });
             });
+        }
+
+        function isRouteDeletable(route) {
+            return route && !route.is_legacy && route.legacy_key === 'route:' + route.id;
         }
 
         function updateRouteDraft(form, input) {
@@ -1260,6 +1279,14 @@
                     </form>
                     ${moveButton(rows[index - 1], 'move_up', 'nach oben verschieben', '↑')}
                     ${moveButton(rows[index + 1], 'move_down', 'nach unten verschieben', '↓')}
+                    ${isRouteDeletable(route) ? `
+                        <button type="button" data-route-menu aria-expanded="false" aria-controls="route-menu-${id}"
+                            aria-label="Aktionen für ${name}"
+                            class="route-editor-control route-move-button rounded border border-gray-300 font-semibold">⋯</button>
+                        <div id="route-menu-${id}" class="route-editor-menu" hidden>
+                            <button type="button" data-route-delete="${id}"
+                                class="route-editor-control rounded border border-red-200 px-2 text-sm font-semibold text-red-700">Route löschen</button>
+                        </div>` : ''}
                 </li>`;
             }).join('') || (search ? '<li class="py-2 text-sm text-gray-600">Keine passende Route gefunden.</li>' : '');
         }
@@ -1303,20 +1330,29 @@
             updateRouteManagerState();
             let message;
             let saved = false;
+            const deleting = action === 'delete';
             try {
-                const { error } = await _supabase.rpc('manage_route', { p_action: action, ...fields })
+                const request = deleting ? _supabase.rpc('delete_route', fields)
+                    : _supabase.rpc('manage_route', { p_action: action, ...fields });
+                const { error } = await request
                     .abortSignal(AbortSignal.timeout(8000));
                 if (catalog !== routesSession) return false;
                 if (error) throw error;
                 saved = true;
-                if (action === 'rename') catalog.drafts.delete(fields.p_route_id);
+                if (action === 'rename' || deleting) catalog.drafts.delete(fields.p_route_id);
                 if (catalog.request) await catalog.request;
                 if (catalog !== routesSession) return false;
                 const refreshed = await loadRouteCatalog();
                 message = refreshed ? 'Änderung gespeichert.' : 'Änderung gespeichert. Lade die Routenliste erneut.';
             } catch (error) {
                 if (catalog !== routesSession) return false;
-                if (error?.code === '23505') {
+                if (deleting) {
+                    message = {
+                        '23503': 'Dieser Encounter-Ort wird von Fängen oder einem Team verwendet.',
+                        '42501': 'Dieser Encounter-Ort kann nicht gelöscht werden.',
+                        P0002: 'Dieser Encounter-Ort existiert nicht mehr. Öffne die Routenverwaltung erneut.'
+                    }[error?.code] || 'Die Löschung konnte nicht bestätigt werden.';
+                } else if (error?.code === '23505') {
                     message = 'Diesen Routennamen gibt es bereits.';
                 } else if (error?.code === '22023') {
                     message = 'Die Route oder der Name ist ungültig.';
