@@ -78,6 +78,7 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                 appendChild(child) { this.children.push(child); },
                 showModal() { this.open = true; },
                 close() { this.open = false; },
+                focus() { this.focused = true; },
                 addEventListener(event, callback) { listeners.set(event, callback); },
                 dispatch(event, details) { return listeners.get(event)(details); }
             });
@@ -374,11 +375,23 @@ test('loads all 58 routes in database order and reloads after each route managem
     await move('move_down');
     assert.deepEqual(names().slice(0, 2), ['Alabastia/ Starter', 'Neuer Routenname']);
 
-    const newName = { value: 'Casino Evoli (300)' };
-    await app.element('route-add-form').dispatch('submit', {
-        currentTarget: { elements: { namedItem: () => newName } }, preventDefault() {}
-    });
+    const newName = { value: '', focus() {} };
+    const addForm = app.element('route-add-form');
+    addForm.elements = { namedItem: () => newName };
+    addForm.reset = () => { newName.value = ''; };
+    assert.equal(addForm.hidden, true);
+    app.element('route-add-open').dispatch('click');
+    assert.equal(addForm.hidden, false);
+    newName.value = 'Abgebrochener Ort';
+    app.element('route-add-cancel').dispatch('click');
+    assert.equal(addForm.hidden, true);
     assert.equal(newName.value, '');
+    assert.equal(app.routeWrites.length, 3);
+    app.element('route-add-open').dispatch('click');
+    newName.value = 'Casino Evoli (300)';
+    await addForm.dispatch('submit', { preventDefault() {} });
+    assert.equal(newName.value, '');
+    assert.equal(addForm.hidden, true);
     assert.equal(names().at(-1), 'Casino Evoli (300)');
     assert.equal(app.routeReads.length, 6);
     assert.deepEqual(app.routeWrites.map(fields => fields.p_action), ['rename', 'move_up', 'move_down', 'add']);
@@ -392,6 +405,51 @@ test('loads all 58 routes in database order and reloads after each route managem
     await app.run('savePokemonData()');
     assert.equal(app.writes[0].route_id, 'new-route-id');
     assert.equal(app.writes[0].route_name, 'route:new-route-id');
+});
+
+test('route name drafts survive search and RPC failures; Escape discards and repeated submits are blocked', async () => {
+    const app = await setup();
+    await app.start();
+    const list = app.element('route-editor-list');
+    const search = app.element('route-editor-search');
+    const input = { name: 'name', value: route, focus() {} };
+    const button = { hidden: true };
+    const form = {
+        dataset: { routeId: routeIdFor(route) },
+        elements: { namedItem: () => input },
+        querySelector: () => button
+    };
+    input.form = form;
+    const submit = () => list.dispatch('submit', { target: form, preventDefault() {} });
+    await submit();
+    assert.equal(app.routeWrites.length, 0);
+    input.value = '  Route 1  ';
+    list.dispatch('input', { target: input });
+    assert.equal(button.hidden, true);
+    input.value = 'Neuer Entwurf';
+    list.dispatch('input', { target: input });
+    assert.equal(button.hidden, false);
+    search.value = '  ROUTE 1 ';
+    search.dispatch('input');
+    assert.match(list.innerHTML, /value="Neuer Entwurf"/);
+    assert.doesNotMatch(list.innerHTML, /Casino Abra/);
+    assert.match(list.innerHTML, /data-neighbor-id="route-id:Alabastia\/ Starter"/);
+    assert.equal(app.routeReads.length, 1);
+
+    app.setRpcError({ code: 'failure' });
+    await Promise.all([submit(), submit()]);
+    assert.equal(app.routeWrites.length, 1);
+    assert.match(list.innerHTML, /value="Neuer Entwurf"/);
+    assert.match(app.element('routes-dialog-status').textContent, /nicht bestätigt/);
+    let prevented = false;
+    list.dispatch('keydown', { key: 'Escape', target: input, preventDefault() { prevented = true; } });
+    assert.equal(prevented, true);
+    assert.equal(input.value, route);
+    assert.equal(button.hidden, true);
+    search.value = '';
+    search.dispatch('input');
+    assert.equal((list.innerHTML.match(/class="route-editor-row/g) ?? []).length, 58);
+    assert.doesNotMatch(list.innerHTML, /Neuer Entwurf/);
 });
 
 test('displays route-management failures, refreshes stale moves, and supports catalog retry', async () => {

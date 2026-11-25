@@ -193,11 +193,16 @@
                 height: 2.25rem;
             }
         }
-        #routes-dialog { width: min(40rem, calc(100% - 1.5rem)); max-height: 85vh; }
-        #routes-dialog fieldset { min-width: 0; }
+        #routes-dialog { width: min(40rem, calc(100% - 1.5rem)); max-height: calc(100dvh - 1.5rem); margin: auto; overflow: hidden; }
+        #routes-dialog[open] { display: flex; flex-direction: column; }
+        #routes-dialog [hidden] { display: none; }
+        #routes-editor { display: contents; }
+        #routes-dialog > :not(fieldset), .route-editor-toolbar { flex-shrink: 0; }
+        #route-editor-list { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+        #route-editor-search { width: 100%; }
         .route-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .375rem; align-items: start; }
         .route-editor-form { display: flex; flex-wrap: wrap; gap: .375rem; min-width: 0; }
-        .route-editor-form input { flex: 1 1 8rem; min-width: 0; }
+        .route-editor-form input { flex: 1 1 6rem; min-width: 0; }
         .route-editor-control { min-height: 2.75rem; }
         .route-move-button { min-width: 2.75rem; }
     </style>
@@ -497,11 +502,18 @@
         <p id="routes-dialog-status" role="status" class="text-sm"></p>
         <button id="routes-dialog-retry" type="button" hidden class="mb-2 text-sm font-semibold text-blue-700 underline">Routen erneut laden</button>
         <fieldset id="routes-editor" disabled>
-            <form id="route-add-form" class="route-editor-form mb-3">
-                <input name="name" required aria-label="Neuer Encounter-Ort" placeholder="Neuer Encounter-Ort"
+            <div class="route-editor-toolbar mb-2 space-y-2">
+                <input id="route-editor-search" type="search" aria-label="Routen nach Namen filtern" placeholder="Routen suchen"
                     class="route-editor-control rounded border border-gray-300 px-2 text-sm">
-                <button type="submit" class="route-editor-control rounded bg-blue-700 px-3 text-sm font-semibold text-white">Hinzufügen</button>
-            </form>
+                <button id="route-add-open" type="button"
+                    class="route-editor-control rounded border border-gray-300 px-3 text-sm font-semibold">+ Encounter-Ort hinzufügen</button>
+                <form id="route-add-form" hidden class="route-editor-form">
+                    <input name="name" required aria-label="Neuer Encounter-Ort" placeholder="Neuer Encounter-Ort"
+                        class="route-editor-control rounded border border-gray-300 px-2 text-sm">
+                    <button type="submit" class="route-editor-control rounded bg-blue-700 px-3 text-sm font-semibold text-white">Hinzufügen</button>
+                    <button id="route-add-cancel" type="button" class="route-editor-control rounded border px-2 text-sm">Abbrechen</button>
+                </form>
+            </div>
             <ol id="route-editor-list" class="space-y-2"></ol>
         </fieldset>
     </dialog>
@@ -836,7 +848,7 @@
                 checkFirstLogin(session.user);
                 if (!pokemonCatalogSession || pokemonCatalogSession.userId !== session.user.id) {
                     pokemonCatalogSession = { userId: session.user.id };
-                    routesSession = { rows: [], byId: new Map(), byKey: new Map() };
+                    routesSession = { rows: [], byId: new Map(), byKey: new Map(), drafts: new Map() };
                     displayedRoutes = undefined;
                     catchLoadRevision++;
                     closeModal();
@@ -1113,6 +1125,28 @@
         function setupRouteManager() {
             const dialog = document.getElementById('routes-dialog');
             const list = document.getElementById('route-editor-list');
+            const search = document.getElementById('route-editor-search');
+            const addForm = document.getElementById('route-add-form');
+            const addButton = document.getElementById('route-add-open');
+            const cancelAdd = () => {
+                setRouteAddOpen(false);
+                addButton.focus();
+            };
+            addButton.addEventListener('click', () => {
+                setRouteAddOpen(true);
+                addForm.elements.namedItem('name').focus();
+            });
+            document.getElementById('route-add-cancel').addEventListener('click', cancelAdd);
+            addForm.addEventListener('keydown', event => {
+                if (event.key !== 'Escape') return;
+                event.preventDefault();
+                cancelAdd();
+            });
+            search.addEventListener('input', () => {
+                renderRouteManager();
+                list.scrollTop = 0;
+            });
+            dialog.addEventListener('close', clearRouteManagerEdits);
             document.getElementById('routes-manage').addEventListener('click', () => {
                 if (!routesSession || dialog.open) return;
                 dialog.showModal();
@@ -1121,15 +1155,34 @@
             for (const id of ['routes-retry', 'routes-dialog-retry']) {
                 document.getElementById(id).addEventListener('click', () => loadRouteCatalog());
             }
-            document.getElementById('route-add-form').addEventListener('submit', async event => {
+            addForm.addEventListener('submit', async event => {
                 event.preventDefault();
-                const input = event.currentTarget.elements.namedItem('name');
-                if (await saveRoute('add', { p_name: input.value })) input.value = '';
+                const input = addForm.elements.namedItem('name');
+                if (await saveRoute('add', { p_name: input.value }) && dialog.open) cancelAdd();
+            });
+            list.addEventListener('input', event => {
+                const input = event.target;
+                if (input.name === 'name') updateRouteDraft(input.form, input);
+            });
+            list.addEventListener('keydown', event => {
+                if (event.key !== 'Escape') return;
+                const form = event.target.form;
+                const route = routesSession?.byId.get(form?.dataset.routeId);
+                if (!route) return;
+                const input = form.elements.namedItem('name');
+                if (input.value === route.name) return;
+                event.preventDefault();
+                input.value = route.name;
+                updateRouteDraft(form, input);
+                input.focus();
             });
             list.addEventListener('submit', event => {
                 event.preventDefault();
                 const form = event.target;
-                return saveRoute('rename', { p_route_id: form.dataset.routeId, p_name: form.elements.namedItem('name').value });
+                const id = form.dataset.routeId;
+                const name = form.elements.namedItem('name').value.trim();
+                const route = routesSession?.byId.get(id);
+                if (route && name !== route.name) return saveRoute('rename', { p_route_id: id, p_name: name });
             });
             list.addEventListener('click', event => {
                 const button = event.target.closest('button[data-route-move]');
@@ -1140,11 +1193,34 @@
             });
         }
 
+        function updateRouteDraft(form, input) {
+            const id = form.dataset.routeId;
+            const route = routesSession?.byId.get(id);
+            if (!route) return;
+            const changed = input.value.trim() !== route.name;
+            if (changed) routesSession.drafts.set(id, input.value);
+            else routesSession.drafts.delete(id);
+            form.querySelector('button[type="submit"]').hidden = !changed;
+        }
+
+        function setRouteAddOpen(open) {
+            const form = document.getElementById('route-add-form');
+            form.hidden = !open;
+            document.getElementById('route-add-open').hidden = open;
+            if (!open) form.reset?.();
+        }
+
+        function clearRouteManagerEdits() {
+            routesSession?.drafts.clear();
+            document.getElementById('route-editor-search').value = '';
+            setRouteAddOpen(false);
+            renderRouteManager();
+        }
+
         function resetRouteManager() {
             const dialog = document.getElementById('routes-dialog');
             if (dialog.open) dialog.close();
-            document.getElementById('route-add-form').reset?.();
-            renderRouteManager();
+            clearRouteManagerEdits();
             updateRouteManagerState();
         }
 
@@ -1164,9 +1240,12 @@
 
         function renderRouteManager() {
             const rows = routesSession?.rows ?? [];
+            const search = document.getElementById('route-editor-search').value.trim().toLowerCase();
             document.getElementById('route-editor-list').innerHTML = rows.map((route, index) => {
+                if (!route.name.toLowerCase().includes(search)) return '';
                 const id = escapeHtml(route.id);
                 const name = escapeHtml(route.name);
+                const draft = routesSession?.drafts?.get(route.id) ?? route.name;
                 const moveButton = (neighbor, direction, label, symbol) => `
                     <button type="button" data-route-move="${direction}" data-route-id="${id}"
                         data-neighbor-id="${escapeHtml(neighbor?.id)}" aria-label="${name} ${label}"
@@ -1174,14 +1253,15 @@
                         ${neighbor ? '' : 'disabled'}>${symbol}</button>`;
                 return `<li class="route-editor-row border-t border-gray-200 pt-2">
                     <form data-route-id="${id}" class="route-editor-form">
-                        <input name="name" value="${name}" required aria-label="Name für ${name}"
+                        <input name="name" value="${escapeHtml(draft)}" required aria-label="Name für ${name}"
                             class="route-editor-control rounded border border-gray-300 px-2 text-sm">
-                        <button type="submit" class="route-editor-control rounded border px-2 text-sm font-semibold">Umbenennen</button>
+                        <button type="submit" ${draft.trim() === route.name ? 'hidden' : ''}
+                            class="route-editor-control rounded bg-blue-700 px-2 text-sm font-semibold text-white">Speichern</button>
                     </form>
                     ${moveButton(rows[index - 1], 'move_up', 'nach oben verschieben', '↑')}
                     ${moveButton(rows[index + 1], 'move_down', 'nach unten verschieben', '↓')}
                 </li>`;
-            }).join('');
+            }).join('') || (search ? '<li class="py-2 text-sm text-gray-600">Keine passende Route gefunden.</li>' : '');
         }
 
         async function loadRouteCatalog() {
@@ -1229,6 +1309,7 @@
                 if (catalog !== routesSession) return false;
                 if (error) throw error;
                 saved = true;
+                if (action === 'rename') catalog.drafts.delete(fields.p_route_id);
                 if (catalog.request) await catalog.request;
                 if (catalog !== routesSession) return false;
                 const refreshed = await loadRouteCatalog();
