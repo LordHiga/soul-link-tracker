@@ -8,6 +8,12 @@ const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8');
 const script = new vm.Script(html.split('<script>').at(-1).split('</script>')[0]);
 const catalogModule = import('../lib/pokemon-catalog-display.mjs');
 const route = 'Route 1';
+const routeIdFor = key => 'route-id:' + key;
+const routeSeed = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'routes_catalog.sql'), 'utf8')
+    .match(/from unnest\(array\[([\s\S]*?)\]::text\[\]\)/)[1];
+const catalogRoutes = [...routeSeed.matchAll(/'([^']+)'/g)].map(([, name], index) => ({
+    id: routeIdFor(name), name, legacy_key: name, sort_position: index + 1, is_legacy: false
+}));
 const runId = 'run-1';
 const player = 'Higa';
 const oldName = 'Charmander';
@@ -33,12 +39,14 @@ function browserStorage() {
 function caught(id, name, fields = {}) {
     return {
         id: 'catch-1', run_id: runId, route_name: route, player_name: player,
-        pokemon_id: id, pokemon_name: name, status: 'ALIVE', level: 8, ...fields
+        pokemon_id: id, pokemon_name: name, status: 'ALIVE', level: 8,
+        route_id: routeIdFor(fields.route_name ?? route), ...fields
     };
 }
 
 async function setup({ result = { data: fixture() }, initialCatches = [], storage = browserStorage(), loggedIn = true,
-    primaryUpdateResult, deleteResult, confirmDelete = true } = {}) {
+    primaryUpdateResult, deleteResult, confirmDelete = true, routeRows = catalogRoutes,
+    initialRuns = [{ id: runId, title: 'Test-Run', is_finished: false }] } = {}) {
     const elements = new Map();
     const writes = [];
     const requests = [];
@@ -46,8 +54,13 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
     const deletions = [];
     const confirmations = [];
     const teamReads = [];
+    const routeReads = [];
+    const routeWrites = [];
     let start;
-    const runs = [{ id: runId, title: 'Test-Run', is_finished: false }];
+    const runs = initialRuns.map(run => ({ ...run }));
+    const routes = routeRows.map(route => ({ ...route }));
+    let routeError;
+    let rpcError;
     let catalogResult = result;
     const catches = initialCatches.map(record => ({ ...record }));
 
@@ -63,6 +76,8 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                 },
                 replaceChildren(...children) { this.children = children; },
                 appendChild(child) { this.children.push(child); },
+                showModal() { this.open = true; },
+                close() { this.open = false; },
                 addEventListener(event, callback) { listeners.set(event, callback); },
                 dispatch(event, details) { return listeners.get(event)(details); }
             });
@@ -76,6 +91,25 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                 user: { id: 'fixture-user', email: 'fixture@example.test', user_metadata: { has_seen_gag: true } }
             } : null } })
         },
+        rpc(name, parameters) {
+            assert.equal(name, 'manage_route');
+            routeWrites.push(parameters);
+            return {
+                async abortSignal() {
+                    if (rpcError) return { error: rpcError };
+                    const selected = routes.find(item => item.id === parameters.p_route_id);
+                    const neighbor = routes.find(item => item.id === parameters.p_expected_neighbor_id);
+                    if (parameters.p_action === 'add') {
+                        routes.push({
+                            id: 'new-route-id', legacy_key: 'route:new-route-id', name: parameters.p_name,
+                            sort_position: routes.length + 1, is_legacy: false
+                        });
+                    } else if (parameters.p_action === 'rename') selected.name = parameters.p_name;
+                    else [selected.sort_position, neighbor.sort_position] = [neighbor.sort_position, selected.sort_position];
+                    return {};
+                }
+            };
+        },
         from(table) {
             const filters = {};
             let columns;
@@ -85,12 +119,17 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                 select(value) { columns = value; return query; },
                 order(column) {
                     if (table === 'pokemon_catalog') assert.equal(column, 'id');
+                    if (table === 'routes') assert.equal(column, 'sort_position');
                     return query;
                 },
                 limit(limit) { assert.equal(limit, 387); return query; },
                 eq(column, value) { filters[column] = value; return query; },
                 async abortSignal(signal) {
                     assert.equal(signal.aborted, false);
+                    if (table === 'routes') {
+                        routeReads.push(columns);
+                        return { data: routes.map(route => ({ ...route })).reverse(), error: routeError };
+                    }
                     assert.equal(table, 'pokemon_catalog');
                     requests.push(columns);
                     return catalogResult;
@@ -100,7 +139,7 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
                     assert.equal(columns, 'id');
                     writes.push(update);
                     if (primaryUpdateResult) return primaryUpdateResult;
-                    const record = catches.find(record => record.id === filters.id);
+                    const record = catches.find(record => record.id === filters.id && record.run_id === filters.run_id);
                     if (!record) return { data: null, error: { code: 'PGRST116' } };
                     Object.assign(record, update);
                     return { data: { id: record.id }, error: null };
@@ -158,12 +197,15 @@ async function setup({ result = { data: fixture() }, initialCatches = [], storag
     const run = code => vm.runInContext(code, context);
     run('pokemonCatalogModule = testCatalogModule');
     return {
-        run, element, requests, writes, catches, reports, deletions, confirmations, teamReads, start: () => start(),
+        run, element, requests, writes, catches, reports, deletions, confirmations, teamReads,
+        routeReads, routeWrites, start: () => start(),
         finishRun() { runs[0].is_finished = true; },
         setCatalogResult(value) { catalogResult = value; },
+        setRouteError(value) { routeError = value; },
+        setRpcError(value) { rpcError = value; },
         async open(record) {
             context.editRecord = record;
-            run(`openModal('${route}', '${player}', editRecord)`);
+            run(`openModal('${record?.route_id ?? routeIdFor(route)}', '${player}', editRecord)`);
         }
     };
 }
@@ -209,7 +251,7 @@ test('saves a selected catalog name and exact ID and blocks unknown or ambiguous
     const app = await setup({ result: { data: rows } });
     await app.start();
     app.element('routes-container').dispatch('click', {
-        target: { closest: () => ({ dataset: { catchRoute: route, catchPlayer: player } }) }
+        target: { closest: () => ({ dataset: { catchRoute: routeIdFor(route), catchPlayer: player } }) }
     });
     for (const value of ['Missing', 'Doppelt']) {
         app.element('poke-name-input').value = value;
@@ -222,6 +264,8 @@ test('saves a selected catalog name and exact ID and blocks unknown or ambiguous
     assert.equal(app.writes.length, 1);
     assert.equal(app.writes[0].pokemon_id, 6);
     assert.equal(app.writes[0].pokemon_name, 'Glurak');
+    assert.equal(app.writes[0].route_id, routeIdFor(route));
+    assert.equal(app.writes[0].route_name, route);
     assert.ok(!Object.hasOwn(app.writes[0], 'level'));
     assert.equal(app.element('poke-name-input').value, 'Glurak');
 });
@@ -266,10 +310,11 @@ test('the shared catch form and overview show no Pokémon levels', async () => {
 });
 
 test('route search is local, finds hidden routes, and restores the standard view when cleared', async () => {
-    const app = await setup();
+    const app = await setup({ routeRows: [...catalogRoutes, {
+        id: 'search-fixture', name: 'Route 104', legacy_key: 'historischer Schlüssel', sort_position: 59
+    }] });
     await app.start();
-    // Route 104 is a search fixture. The FireRed route list does not contain it.
-    app.run(`KANTO_ROUTES.push('Route 104'); _supabase.from = () => { throw new Error('Unexpected route search request'); }`);
+    app.run("_supabase.from = () => { throw new Error('Unexpected route search request'); }");
     const input = app.element('route-search');
     const routes = app.element('routes-container');
     const standardView = routes.innerHTML;
@@ -287,6 +332,143 @@ test('route search is local, finds hidden routes, and restores the standard view
     input.value = '';
     input.dispatch('input');
     assert.equal(routes.innerHTML, standardView);
+});
+
+test('loads all 58 routes in database order and reloads after each route management action', async () => {
+    const original = caught(4, oldName);
+    const app = await setup({ initialCatches: [original] });
+    await app.start();
+    const names = () => [...app.element('routes-container').innerHTML.matchAll(/📍 ([^<]+)</g)].map(match => match[1]);
+    const view = app.element('route-view');
+    view.value = 'all';
+    view.dispatch('change');
+    assert.equal(names().length, 58);
+    assert.deepEqual(names(), catalogRoutes.map(item => item.name));
+    assert.equal(app.routeReads.length, 1);
+    app.element('routes-manage').dispatch('click');
+    await app.run('loadRouteCatalog()');
+    assert.equal(app.element('routes-dialog').open, true);
+    assert.equal(app.element('routes-editor').disabled, false);
+
+    const list = app.element('route-editor-list');
+    const form = {
+        dataset: { routeId: routeIdFor(route) },
+        elements: { namedItem: () => ({ value: 'Neuer Routenname' }) }
+    };
+    await list.dispatch('submit', { target: form, preventDefault() {} });
+    assert.equal(names()[1], 'Neuer Routenname');
+    assert.match(app.element('routes-container').innerHTML, /Glumanda/);
+    await app.open(original);
+    assert.match(app.element('modal-title').textContent, /Neuer Routenname/);
+    app.run('closeModal()');
+    assert.deepEqual(app.catches, [original]);
+    assert.deepEqual(app.writes, []);
+
+    const move = routeMove => list.dispatch('click', {
+        target: { closest: () => ({ dataset: {
+            routeMove, routeId: routeIdFor(route), neighborId: routeIdFor('Alabastia/ Starter')
+        } }) }
+    });
+    await move('move_up');
+    assert.deepEqual(names().slice(0, 2), ['Neuer Routenname', 'Alabastia/ Starter']);
+    await move('move_down');
+    assert.deepEqual(names().slice(0, 2), ['Alabastia/ Starter', 'Neuer Routenname']);
+
+    const newName = { value: 'Casino Evoli (300)' };
+    await app.element('route-add-form').dispatch('submit', {
+        currentTarget: { elements: { namedItem: () => newName } }, preventDefault() {}
+    });
+    assert.equal(newName.value, '');
+    assert.equal(names().at(-1), 'Casino Evoli (300)');
+    assert.equal(app.routeReads.length, 6);
+    assert.deepEqual(app.routeWrites.map(fields => fields.p_action), ['rename', 'move_up', 'move_down', 'add']);
+    assert.equal(app.routeWrites[1].p_expected_neighbor_id, routeIdFor('Alabastia/ Starter'));
+    assert.doesNotMatch(list.innerHTML, /route:new-route-id|Löschen/);
+
+    app.element('routes-container').dispatch('click', {
+        target: { closest: () => ({ dataset: { catchRoute: 'new-route-id', catchPlayer: player } }) }
+    });
+    app.element('poke-name-input').value = 'Bisasam';
+    await app.run('savePokemonData()');
+    assert.equal(app.writes[0].route_id, 'new-route-id');
+    assert.equal(app.writes[0].route_name, 'route:new-route-id');
+});
+
+test('displays route-management failures, refreshes stale moves, and supports catalog retry', async () => {
+    const original = caught(4, oldName);
+    const app = await setup({ initialCatches: [original] });
+    app.setRouteError({ code: 'fixture-error' });
+    await app.start();
+    assert.match(app.element('routes-status').textContent, /nicht geladen/);
+    assert.equal(app.element('routes-editor').disabled, true);
+    assert.match(app.element('routes-container').innerHTML, /Glumanda/);
+    assert.doesNotMatch(app.element('routes-container').innerHTML, /data-catch-route=/);
+    await app.open();
+    assert.equal(app.element('pokemon-modal').classList.contains('hidden'), true);
+    app.element('poke-name-input').value = 'Bisasam';
+    await app.run('savePokemonData()');
+    assert.deepEqual(app.catches, [original]);
+    assert.deepEqual(app.writes, []);
+    app.setRouteError(undefined);
+    await app.element('routes-retry').dispatch('click');
+    assert.equal(app.element('routes-editor').disabled, false);
+
+    const rename = `saveRoute('rename', { p_route_id: '${routeIdFor(route)}', p_name: 'Name' })`;
+    app.setRpcError({ code: '23505' });
+    assert.equal(await app.run(rename), false);
+    assert.match(app.element('routes-dialog-status').textContent, /bereits/);
+    assert.equal(app.routeReads.length, 2);
+
+    app.setRpcError({ code: '40001' });
+    assert.equal(await app.run(`saveRoute('move_up', { p_route_id: '${routeIdFor(route)}' })`), false);
+    assert.match(app.element('routes-dialog-status').textContent, /Reihenfolge/);
+    assert.equal(app.routeReads.length, 3);
+
+    app.setRpcError(undefined);
+    app.setRouteError({ code: 'notice-after-save' });
+    assert.equal(await app.run(rename), true);
+    assert.match(app.element('routes-dialog-status').textContent, /gespeichert.*erneut/);
+    assert.equal(app.element('routes-editor').disabled, true);
+    assert.equal(app.element('routes-dialog-retry').hidden, false);
+    app.setRouteError(undefined);
+    await app.element('routes-dialog-retry').dispatch('click');
+    assert.equal(app.element('routes-editor').disabled, false);
+    assert.deepEqual(app.writes, []);
+});
+
+test('a Wipe shows archived duplicate catches and used historical routes without enabling catch edits', async () => {
+    const legacy = { id: 'legacy-place', name: 'Historischer Ort', legacy_key: 'Alter Ort', sort_position: 59, is_legacy: true };
+    const unused = { id: 'unused-place', name: 'Unbenutzter Sonderort', legacy_key: 'Sonderort', sort_position: 60, is_legacy: true };
+    const history = { id: runId, title: 'Archivierter Wipe', outcome: 'WIPE', is_finished: true };
+    const app = await setup({
+        initialRuns: [history], routeRows: [...catalogRoutes, legacy, unused],
+        initialCatches: [
+            caught(4, oldName, { route_name: legacy.legacy_key, route_id: legacy.id, status: 'DEAD' }),
+            caught(6, 'Charizard', { id: 'historic-duplicate', route_name: legacy.legacy_key, route_id: legacy.id, status: 'DEAD' })
+        ]
+    });
+    await app.start();
+    const cards = app.element('routes-container').innerHTML;
+    assert.match(cards, /Historischer Ort[\s\S]*Glumanda[\s\S]*Glurak/);
+    assert.doesNotMatch(cards, /Unbenutzter Sonderort|data-catch-route=/);
+    await app.run('loadAndRenderHistory()');
+    assert.match(app.element('run-history-cards').innerHTML, /Encounters: 1.*Dead: 1/);
+    assert.match(app.element('run-history-cards').innerHTML, /Wipe/);
+    await app.open(app.catches[0]);
+    assert.equal(app.element('pokemon-modal').classList.contains('hidden'), true);
+    assert.deepEqual(app.writes, []);
+});
+
+test('saving from a stale catch dialog stops if the run was finished in another tab', async () => {
+    const original = caught(4, oldName);
+    const app = await setup({ initialCatches: [original] });
+    await app.start();
+    await app.open(original);
+    app.finishRun();
+    app.element('poke-status-input').value = 'BOX';
+    await app.run('savePokemonData()');
+    assert.match(app.element('pokemon-save-error').textContent, /schreibgeschützt/);
+    assert.deepEqual(app.writes, []);
 });
 
 const boxedPartner = caught(1, 'Bisasam', { id: 'partner-1', player_name: 'Eike', status: 'BOX' });

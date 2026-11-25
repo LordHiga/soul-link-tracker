@@ -193,6 +193,13 @@
                 height: 2.25rem;
             }
         }
+        #routes-dialog { width: min(40rem, calc(100% - 1.5rem)); max-height: 85vh; }
+        #routes-dialog fieldset { min-width: 0; }
+        .route-editor-row { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: .375rem; align-items: start; }
+        .route-editor-form { display: flex; flex-wrap: wrap; gap: .375rem; min-width: 0; }
+        .route-editor-form input { flex: 1 1 8rem; min-width: 0; }
+        .route-editor-control { min-height: 2.75rem; }
+        .route-move-button { min-width: 2.75rem; }
     </style>
 </head>
 
@@ -355,6 +362,8 @@
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <h2 class="text-lg font-bold text-gray-700">Routen-Übersicht</h2>
                     <div class="flex min-w-0 flex-wrap items-center gap-2">
+                        <button id="routes-manage" type="button" disabled
+                            class="tracker-control border border-gray-300 px-3 py-2 text-sm font-semibold hover:bg-gray-50 disabled:opacity-40">Routen verwalten</button>
                         <input id="route-search" type="search" aria-label="Routen suchen" placeholder="Route suchen"
                             autocomplete="off" class="tracker-control min-w-0 max-w-full border border-gray-300 px-3 py-2 text-sm">
                         <select id="route-view" aria-label="Routenansicht"
@@ -366,6 +375,8 @@
                     </div>
                 </div>
 
+                <p id="routes-status" role="status" class="text-sm"></p>
+                <button id="routes-retry" type="button" hidden class="mb-2 text-sm font-semibold text-blue-700 underline">Routen erneut laden</button>
                 <div id="routes-container" class="space-y-4"></div>
             </div>
 
@@ -477,6 +488,24 @@
             </form>
         </div>
     </div>
+    <dialog id="routes-dialog" aria-labelledby="routes-dialog-title"
+        class="rounded-xl border border-gray-200 bg-white p-3 text-gray-800 shadow-xl backdrop:bg-slate-900/50 sm:p-5">
+        <div class="mb-2 flex items-center justify-between gap-2">
+            <h2 id="routes-dialog-title" class="text-lg font-bold">Routen verwalten</h2>
+            <form method="dialog"><button class="route-editor-control rounded border px-3 text-sm">Schließen</button></form>
+        </div>
+        <p id="routes-dialog-status" role="status" class="text-sm"></p>
+        <button id="routes-dialog-retry" type="button" hidden class="mb-2 text-sm font-semibold text-blue-700 underline">Routen erneut laden</button>
+        <fieldset id="routes-editor" disabled>
+            <form id="route-add-form" class="route-editor-form mb-3">
+                <input name="name" required aria-label="Neuer Encounter-Ort" placeholder="Neuer Encounter-Ort"
+                    class="route-editor-control rounded border border-gray-300 px-2 text-sm">
+                <button type="submit" class="route-editor-control rounded bg-blue-700 px-3 text-sm font-semibold text-white">Hinzufügen</button>
+            </form>
+            <ol id="route-editor-list" class="space-y-2"></ol>
+        </fieldset>
+    </dialog>
+
     <dialog id="team-dialog" aria-labelledby="team-dialog-heading"
         class="m-auto max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-lg overflow-y-auto rounded-xl bg-white p-4 text-gray-800 shadow-xl backdrop:bg-black/50">
         <div class="mb-3 flex items-center justify-between gap-3">
@@ -636,19 +665,6 @@
         const _supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         const PLAYERS = ["Higa", "Eike", "Ruffy"];
-        const KANTO_ROUTES = [
-            "Alabastia/ Starter", "Route 1", "Route 22",
-            "Route 2", "Vertania-Wald", "Karpador Buy", "Route 3", "Route 4",
-            "Mondberg", "Azuria City", "Route 24", "Route 25", "Route 5",
-            "Route 6", "Orania City", "Route 11", "Alabastia", "Vertania City", "Ms Anne", "Digdas Höhle",
-            "Route 9", "Route 10", "Felstunnel", "Route 8", "Route 7",
-            "Prismania City","Evoli Tower","Casino Abra (180)","Casino Piepi (500)", "Pokémon-Turm (Lavandia)", "Route 16", "Route 17 (Radweg)", "Route 18",
-            "Fuchsania City", "Safari-Zone", "Route 12", "Route 13", "Route 14",
-            "Route 15", "Kraftwerk", "Route 19", "Route 20", "Seeschauminseln",
-            "Zinnoberinsel", "Pokémon-Villa", "Eiland Eins (Schatzstrand/Glutherme)", "Glutberg", "Eiland Zwei (Kap Kante)",
-            "Eiland Drei (Bundbrücke)", "Beerenforst", "Route 21", "Route 23", "Siegesstraße",
-            "Eiland Vier (Eiskaskadenhöhle)", "Eiland Fünf (Verlorene Höhle/Weide)", "Eiland Sechs (Musterbusch/Ruintal)", "Eiland Sieben (Schlucht/Tanoby-Ruinen)", "Geheimdungeon (Azuria-Höhle)"
-        ];
         const KANTO_BADGES = [
             { id: 1, name: "Felsorden", leader: "Rocko", levelCap: "14/12", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><polygon points="10,2 22,2 30,10 30,22 22,30 10,30 2,22 2,10" fill="#9CA3AF" stroke="#4B5563" stroke-width="2"/><polygon points="12,6 20,6 26,12 26,20 20,26 12,26 6,20 6,12" fill="#D1D5DB"/></svg>` },
             { id: 2, name: "Quellorden", leader: "Misty", levelCap: "21/18", svg: `<svg viewBox="0 0 32 32" class="w-8 h-8 drop-shadow"><path d="M16 2 C16 2 5 14 5 21 A11 11 0 0 0 27 21 C27 14 16 2 16 2 Z" fill="#38BDF8" stroke="#0284C7" stroke-width="2"/><path d="M16 7 C16 7 9 16 9 20 A7 7 0 0 0 23 20 C23 16 16 7 16 7 Z" fill="#7DD3FC"/></svg>` },
@@ -682,6 +698,8 @@
         let catchEditor;
         let savingCatch = false;
         let displayedRoutes;
+        let routesSession;
+        let catchLoadRevision = 0;
         let teamUi;
         let currentRunData = null;
         let currentUserEmail = null;
@@ -710,6 +728,7 @@
             document.getElementById('pokemon-remove-btn').addEventListener('click', removePokemonCatch);
             document.getElementById('route-search').addEventListener('input', refreshRouteView);
             document.getElementById('route-view').addEventListener('change', refreshRouteView);
+            setupRouteManager();
             document.getElementById('view-history').addEventListener('click', (event) => {
                 const target = event.target.closest('[data-history-run]');
                 const run = target && historyRuns.find(item => String(item.id) === target.dataset.historyRun);
@@ -726,8 +745,8 @@
             document.getElementById('routes-container').addEventListener('click', (e) => {
                 const button = e.target.closest('button[data-catch-player]');
                 if (!button || displayedRoutes?.runId !== currentRunId) return;
-                const { catchRoute: route, catchPlayer: player } = button.dataset;
-                openModal(route, player, displayedRoutes.routesMap[route]?.[player]);
+                const { catchRoute: routeId, catchPlayer: player } = button.dataset;
+                openModal(routeId, player, displayedRoutes.routesMap[routeId]?.[player]?.[0]);
             });
             document.getElementById('routes-container').addEventListener('error', (e) => {
                 const image = e.target;
@@ -817,14 +836,22 @@
                 checkFirstLogin(session.user);
                 if (!pokemonCatalogSession || pokemonCatalogSession.userId !== session.user.id) {
                     pokemonCatalogSession = { userId: session.user.id };
+                    routesSession = { rows: [], byId: new Map(), byKey: new Map() };
+                    displayedRoutes = undefined;
+                    catchLoadRevision++;
+                    closeModal();
+                    resetRouteManager();
                     pokemonCatalog = null;
                     document.getElementById('pokemon-list').replaceChildren();
                     document.getElementById('pokemon-catalog-error').classList.add('hidden');
                 }
-                await Promise.all([loadPokemonCatalog(), loadRuns()]);
+                await Promise.all([loadPokemonCatalog(), loadRouteCatalog(), loadRuns()]);
             } else {
                 currentUserEmail = null;
                 pokemonCatalogSession = pokemonCatalog = null;
+                routesSession = displayedRoutes = undefined;
+                catchLoadRevision++;
+                resetRouteManager();
                 void teamUi?.select(null);
                 closeModal();
                 document.getElementById('login-screen').classList.remove('hidden');
@@ -849,6 +876,7 @@
                         return data;
                     },
                     displayName: pokemonDisplayName,
+                    routeLabel: key => routesSession?.byKey.get(key)?.name ?? key,
                     getBadges: id => pokemonCatalogModule?.getPokemonTypeBadges(pokemonCatalog?.byId.get(id)) || [],
                     escape: escapeHtml
                 });
@@ -1082,6 +1110,152 @@
                 .replace(/'/g, "&#039;");
         }
 
+        function setupRouteManager() {
+            const dialog = document.getElementById('routes-dialog');
+            const list = document.getElementById('route-editor-list');
+            document.getElementById('routes-manage').addEventListener('click', () => {
+                if (!routesSession || dialog.open) return;
+                dialog.showModal();
+                if (!routesSession.saving) void loadRouteCatalog();
+            });
+            for (const id of ['routes-retry', 'routes-dialog-retry']) {
+                document.getElementById(id).addEventListener('click', () => loadRouteCatalog());
+            }
+            document.getElementById('route-add-form').addEventListener('submit', async event => {
+                event.preventDefault();
+                const input = event.currentTarget.elements.namedItem('name');
+                if (await saveRoute('add', { p_name: input.value })) input.value = '';
+            });
+            list.addEventListener('submit', event => {
+                event.preventDefault();
+                const form = event.target;
+                return saveRoute('rename', { p_route_id: form.dataset.routeId, p_name: form.elements.namedItem('name').value });
+            });
+            list.addEventListener('click', event => {
+                const button = event.target.closest('button[data-route-move]');
+                if (!button || button.disabled) return;
+                return saveRoute(button.dataset.routeMove, {
+                    p_route_id: button.dataset.routeId, p_expected_neighbor_id: button.dataset.neighborId
+                });
+            });
+        }
+
+        function resetRouteManager() {
+            const dialog = document.getElementById('routes-dialog');
+            if (dialog.open) dialog.close();
+            document.getElementById('route-add-form').reset?.();
+            renderRouteManager();
+            updateRouteManagerState();
+        }
+
+        function updateRouteManagerState(message = '') {
+            const catalog = routesSession;
+            const error = catalog?.error;
+            const loading = Boolean(catalog?.request);
+            document.getElementById('routes-manage').disabled = !catalog;
+            document.getElementById('routes-editor').disabled = !catalog?.rows.length || Boolean(error || loading || catalog.saving);
+            document.getElementById('routes-status').textContent = error || (loading ? 'Routen werden geladen …' : '');
+            document.getElementById('routes-dialog-status').textContent = message || error
+                || (catalog?.saving ? 'Speichert …' : loading ? 'Routen werden geladen …' : '');
+            for (const id of ['routes-retry', 'routes-dialog-retry']) {
+                document.getElementById(id).hidden = !error || loading || Boolean(catalog?.saving);
+            }
+        }
+
+        function renderRouteManager() {
+            const rows = routesSession?.rows ?? [];
+            document.getElementById('route-editor-list').innerHTML = rows.map((route, index) => {
+                const id = escapeHtml(route.id);
+                const name = escapeHtml(route.name);
+                const moveButton = (neighbor, direction, label, symbol) => `
+                    <button type="button" data-route-move="${direction}" data-route-id="${id}"
+                        data-neighbor-id="${escapeHtml(neighbor?.id)}" aria-label="${name} ${label}"
+                        class="route-editor-control route-move-button rounded border border-gray-300 font-semibold disabled:opacity-40"
+                        ${neighbor ? '' : 'disabled'}>${symbol}</button>`;
+                return `<li class="route-editor-row border-t border-gray-200 pt-2">
+                    <form data-route-id="${id}" class="route-editor-form">
+                        <input name="name" value="${name}" required aria-label="Name für ${name}"
+                            class="route-editor-control rounded border border-gray-300 px-2 text-sm">
+                        <button type="submit" class="route-editor-control rounded border px-2 text-sm font-semibold">Umbenennen</button>
+                    </form>
+                    ${moveButton(rows[index - 1], 'move_up', 'nach oben verschieben', '↑')}
+                    ${moveButton(rows[index + 1], 'move_down', 'nach unten verschieben', '↓')}
+                </li>`;
+            }).join('');
+        }
+
+        async function loadRouteCatalog() {
+            const catalog = routesSession;
+            if (!catalog) return false;
+            if (catalog.request) return catalog.request;
+
+            catalog.request = Promise.resolve().then(async () => {
+                try {
+                    const { data, error } = await _supabase.from('routes')
+                        .select('id,name,legacy_key,sort_position,is_legacy')
+                        .order('sort_position').abortSignal(AbortSignal.timeout(8000));
+                    if (catalog !== routesSession) return false;
+                    if (error || !Array.isArray(data) || !data.length) throw new Error('Ungültiger Routenkatalog');
+                    catalog.rows = [...data].sort((a, b) => a.sort_position - b.sort_position);
+                    catalog.byId = new Map(catalog.rows.map(route => [route.id, route]));
+                    catalog.byKey = new Map(catalog.rows.map(route => [route.legacy_key, route]));
+                    catalog.error = '';
+                    renderRouteManager();
+                    refreshRouteView();
+                    teamUi?.repaint?.();
+                    return true;
+                } catch {
+                    catalog.error = 'Die Routen konnten nicht geladen werden.';
+                    return false;
+                } finally {
+                    catalog.request = null;
+                    if (catalog === routesSession) updateRouteManagerState();
+                }
+            });
+            updateRouteManagerState();
+            return catalog.request;
+        }
+
+        async function saveRoute(action, fields) {
+            const catalog = routesSession;
+            if (!catalog?.rows.length || catalog.saving || catalog.request || catalog.error) return false;
+            catalog.saving = true;
+            updateRouteManagerState();
+            let message;
+            let saved = false;
+            try {
+                const { error } = await _supabase.rpc('manage_route', { p_action: action, ...fields })
+                    .abortSignal(AbortSignal.timeout(8000));
+                if (catalog !== routesSession) return false;
+                if (error) throw error;
+                saved = true;
+                if (catalog.request) await catalog.request;
+                if (catalog !== routesSession) return false;
+                const refreshed = await loadRouteCatalog();
+                message = refreshed ? 'Änderung gespeichert.' : 'Änderung gespeichert. Lade die Routenliste erneut.';
+            } catch (error) {
+                if (catalog !== routesSession) return false;
+                if (error?.code === '23505') {
+                    message = 'Diesen Routennamen gibt es bereits.';
+                } else if (error?.code === '22023') {
+                    message = 'Die Route oder der Name ist ungültig.';
+                } else {
+                    await loadRouteCatalog();
+                    message = error?.code === '40001'
+                        ? 'Die Reihenfolge hat sich geändert. Prüfe die aktuelle Liste.'
+                        : 'Die Änderung konnte nicht bestätigt werden. Prüfe die aktuelle Liste.';
+                }
+            } finally {
+                catalog.saving = false;
+                if (catalog === routesSession) updateRouteManagerState(message);
+            }
+            return saved && catalog === routesSession;
+        }
+
+        function catchRouteIdentity(catchInfo) {
+            return catchInfo.route_id ?? 'legacy:' + (catchInfo.route_name ?? '');
+        }
+
         /* --- RUN-HISTORIE --- */
         async function loadAndRenderHistory() {
             const tbody = document.getElementById('runs-overview-table-body');
@@ -1094,7 +1268,7 @@
             try {
                 const [{ data: runs, error: runsError }, { data: catches, error: catchesError }] = await Promise.all([
                     _supabase.from('runs').select('*'),
-                    _supabase.from('catches').select('run_id,route_name,status')
+                    _supabase.from('catches').select('run_id,route_id,route_name,status')
                 ]);
                 if (runsError) throw runsError;
                 if (!runs?.length) {
@@ -1104,17 +1278,19 @@
 
                 historyRuns = runs.sort((a, b) => String(a.title ?? '').localeCompare(String(b.title ?? ''), undefined, { numeric: true, sensitivity: 'base' }));
                 const encounters = new Map();
-                for (const { run_id, route_name, status } of catches || []) {
+                for (const catchInfo of catches || []) {
+                    const { run_id, status } = catchInfo;
+                    const routeId = catchRouteIdentity(catchInfo);
                     if (!encounters.has(run_id)) {
                         encounters.set(run_id, {
                             total: new Set(), alive: new Set(), dead: new Set(), failed: new Set()
                         });
                     }
                     const stats = encounters.get(run_id);
-                    stats.total.add(route_name);
-                    if (status === 'ALIVE' || status === 'BOX') stats.alive.add(route_name);
-                    if (status === 'DEAD') stats.dead.add(route_name);
-                    if (status === 'FAILED') stats.failed.add(route_name);
+                    stats.total.add(routeId);
+                    if (status === 'ALIVE' || status === 'BOX') stats.alive.add(routeId);
+                    if (status === 'DEAD') stats.dead.add(routeId);
+                    if (status === 'FAILED') stats.failed.add(routeId);
                 }
 
                 const summaries = historyRuns.map(run => {
@@ -1291,6 +1467,7 @@
         async function selectRun(value) {
             const run = loadedRuns.find(item => String(item.id) === String(value));
             if (!run) return;
+            closeModal();
             currentRunId = run.id;
             document.getElementById('run-select').value = run.id;
             displayedRoutes = undefined;
@@ -1341,19 +1518,20 @@
         async function loadRoutesAndCatches() {
             const runId = currentRunId;
             if (!runId) return;
+            const revision = ++catchLoadRevision;
             void teamUi?.select(runId);
 
             const { data: runData } = await _supabase.from('runs').select('*').eq('id', runId).single();
-            if (currentRunId !== runId) return;
+            if (revision !== catchLoadRevision) return;
             const run = runData || loadedRuns.find(item => item.id === runId);
             if (!run) return;
             renderSelectedRun(run);
 
             const [{ data: catches, error }] = await Promise.all([
                 _supabase.from('catches').select('*').eq('run_id', runId),
-                pokemonCatalogSession?.request
+                pokemonCatalogSession?.request, routesSession?.request
             ]);
-            if (currentRunId !== runId) return;
+            if (revision !== catchLoadRevision) return;
             if (error) {
                 displayedRoutes = undefined;
                 document.getElementById('routes-container').textContent = 'Die Fänge konnten nicht geladen werden.';
@@ -1361,20 +1539,20 @@
             }
 
             const routesMap = Object.create(null);
-            const duplicateRoutes = new Set();
-            KANTO_ROUTES.forEach(r => routesMap[r] = Object.create(null));
-
-            if (catches) {
-                catches.forEach(c => {
-                    if (routesMap[c.route_name] && PLAYERS.includes(c.player_name)) {
-                        if (routesMap[c.route_name][c.player_name]) duplicateRoutes.add(c.route_name);
-                        routesMap[c.route_name][c.player_name] = c;
-                    }
-                });
+            const unmatchedRoutes = new Map();
+            for (const catchInfo of catches || []) {
+                if (!PLAYERS.includes(catchInfo.player_name)) continue;
+                const routeId = catchRouteIdentity(catchInfo);
+                const playersData = routesMap[routeId] ??= Object.create(null);
+                (playersData[catchInfo.player_name] ??= []).push(catchInfo);
+                if (!routesSession?.byId.has(routeId)) {
+                    unmatchedRoutes.set(routeId, { id: routeId, name: catchInfo.route_name || 'Unbekannter Encounter-Ort', is_legacy: true });
+                }
             }
 
             renderDeathCounter(catches || []);
-            renderRoutes(routesMap, duplicateRoutes);
+            renderRoutes(routesMap, unmatchedRoutes);
+            if (routesSession?.rows.length && !routesSession.saving && unmatchedRoutes.size) void loadRouteCatalog();
         }
 
         function renderBadges() {
@@ -1502,27 +1680,27 @@
             const counterBar = document.getElementById('death-counter-bar');
             if (!counterBar) return;
 
-            const visitedRoutesSet = new Set(catches.map(c => c.route_name));
+            const visitedRoutesSet = new Set(catches.map(catchRouteIdentity));
             const encounterCount = visitedRoutesSet.size;
 
             const aliveRoutesSet = new Set(
                 catches
                     .filter(c => c.status === 'ALIVE' || c.status === 'BOX')
-                    .map(c => c.route_name)
+                    .map(catchRouteIdentity)
             );
             const aliveCount = aliveRoutesSet.size;
 
             const deadRoutesSet = new Set(
                 catches
                     .filter(c => c.status === 'DEAD')
-                    .map(c => c.route_name)
+                    .map(catchRouteIdentity)
             );
             const deadCount = deadRoutesSet.size;
 
             const failedRoutesSet = new Set(
                 catches
                     .filter(c => c.status === 'FAILED')
-                    .map(c => c.route_name)
+                    .map(catchRouteIdentity)
             );
             const failedCount = failedRoutesSet.size;
 
@@ -1530,11 +1708,12 @@
             const processedRoutes = new Set();
 
             catches.forEach(c => {
-                if (c.status === 'DEAD' && c.killed_by && !processedRoutes.has(c.route_name)) {
+                const routeId = catchRouteIdentity(c);
+                if (c.status === 'DEAD' && c.killed_by && !processedRoutes.has(routeId)) {
                     if (deathCounts[c.killed_by] !== undefined) {
                         deathCounts[c.killed_by]++;
                     }
-                    processedRoutes.add(c.route_name);
+                    processedRoutes.add(routeId);
                 }
             });
 
@@ -1577,42 +1756,40 @@
 
         function refreshRouteView() {
             if (displayedRoutes && displayedRoutes.runId === currentRunId) {
-                renderRoutes(displayedRoutes.routesMap, displayedRoutes.duplicateRoutes);
+                renderRoutes(displayedRoutes.routesMap, displayedRoutes.unmatchedRoutes);
             }
         }
 
-        function renderRoutes(routesMap, duplicateRoutes = new Set()) {
+        function renderRoutes(routesMap, unmatchedRoutes = new Map()) {
             const container = document.getElementById('routes-container');
-            displayedRoutes = { runId: currentRunId, routesMap, duplicateRoutes };
+            displayedRoutes = { runId: currentRunId, routesMap, unmatchedRoutes };
 
             const view = document.getElementById('route-view').value;
             const search = (document.getElementById('route-search').value || '').trim().toLowerCase();
-            const isFinished = currentRunData && currentRunData.is_finished;
-            let routesToDisplay = KANTO_ROUTES;
+            const isFinished = currentRunData?.is_finished;
+            const routes = routesSession?.rows ?? [];
+            const hasCatches = route => Boolean(routesMap[route.id]);
+            const historical = [...unmatchedRoutes.values()].filter(route => !routesSession?.byId.has(route.id));
+            let routesToDisplay = [...routes.filter(route => !route.is_legacy || hasCatches(route)), ...historical];
 
             if (view === 'active') {
-                routesToDisplay = KANTO_ROUTES.filter(route => !duplicateRoutes.has(route)
-                    && PLAYERS.every(player => routesMap[route]?.[player]?.status === 'ALIVE'));
+                routesToDisplay = routesToDisplay.filter(route => PLAYERS.every(player => {
+                    const catches = routesMap[route.id]?.[player];
+                    return catches?.length === 1 && catches[0].status === 'ALIVE';
+                }));
             } else if (view !== 'all' && !search) {
-                const activeRoutes = KANTO_ROUTES.filter(routeName => {
-                    const playersData = routesMap[routeName] || {};
-                    return PLAYERS.some(player => playersData[player]);
-                });
-
-                let firstIncompleteIndex = KANTO_ROUTES.findIndex(routeName => {
-                    const playersData = routesMap[routeName] || {};
-                    return PLAYERS.some(player => !playersData[player]);
-                });
-
-                if (firstIncompleteIndex === -1) firstIncompleteIndex = 0;
-
-                const nextOpenRoutes = KANTO_ROUTES.slice(firstIncompleteIndex, firstIncompleteIndex + 3);
-                const combinedSet = new Set([...activeRoutes, ...nextOpenRoutes]);
-                routesToDisplay = KANTO_ROUTES.filter(r => combinedSet.has(r));
+                const regular = routes.filter(route => !route.is_legacy);
+                const first = Math.max(0, regular.findIndex(route => PLAYERS.some(player => !routesMap[route.id]?.[player]?.length)));
+                const nextRoutes = new Set(regular.slice(first, first + 3));
+                routesToDisplay = routesToDisplay.filter(route => hasCatches(route) || nextRoutes.has(route));
             }
 
-            if (search) routesToDisplay = routesToDisplay.filter(route => route.toLowerCase().includes(search));
+            if (search) routesToDisplay = routesToDisplay.filter(route => route.name.toLowerCase().includes(search));
             if (!routesToDisplay.length) {
+                if (!routes.length && !historical.length) {
+                    container.replaceChildren();
+                    return;
+                }
                 const message = search ? 'Keine passende Route gefunden.' : 'Keine vollständigen aktiven Soul Links vorhanden.';
                 const notice = document.createElement('p');
                 notice.className = 'text-sm text-gray-600';
@@ -1622,60 +1799,64 @@
                 return;
             }
 
-            container.innerHTML = routesToDisplay.map(routeName => {
-                const playersData = routesMap[routeName] || {};
+            container.innerHTML = routesToDisplay.map(route => {
+                const playersData = routesMap[route.id] || {};
+                const canEdit = !isFinished && routesSession?.byId.has(route.id)
+                    && !PLAYERS.some(player => playersData[player]?.length > 1);
                 let routeCard = `
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div class="bg-gray-50 px-4 py-2 border-b border-gray-200 font-bold text-gray-700 flex justify-between items-center">
-                            <span>📍 ${escapeHtml(routeName)}</span>
+                            <span class="min-w-0 break-words">📍 ${escapeHtml(route.name)}</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-gray-200">
                 `;
 
                 PLAYERS.forEach(player => {
-                    const catchInfo = playersData[player];
-                    const buttonData = `type="button" data-catch-route="${escapeHtml(routeName)}" data-catch-player="${escapeHtml(player)}"`;
+                    const playerCatches = playersData[player] ?? [];
+                    const buttonData = `type="button" data-catch-route="${escapeHtml(route.id)}" data-catch-player="${escapeHtml(player)}"`;
                     let content = '';
 
-                    if (catchInfo) {
-                        let statusColor = 'bg-green-50 text-green-700 border-green-200';
-                        if (catchInfo.status === 'DEAD') {
-                            statusColor = 'bg-red-50 text-red-700 border-red-200';
-                        } else if (catchInfo.status === 'BOX') {
-                            statusColor = 'bg-yellow-50 text-yellow-700 border-yellow-200';
-                        } else if (catchInfo.status === 'FAILED') {
-                            statusColor = 'catch-card--failed bg-gray-100 text-gray-700 border-gray-300';
-                        }
-                        const id = Number(catchInfo.pokemon_id);
-                        const spriteId = Number.isSafeInteger(id) && id > 0 ? id : 0;
-                        const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`;
-                        const displayName = escapeHtml(pokemonDisplayName(catchInfo));
-                        const types = pokemonCatalogModule?.getPokemonTypeBadges(pokemonCatalog?.byId.get(id)) || [];
-                        const typeBadges = types.map(([label, color]) =>
-                            `<span class="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white ${color}">${label}</span>`
-                        ).join('');
+                    if (playerCatches.length) {
+                        content = playerCatches.map(catchInfo => {
+                            let statusColor = 'bg-green-50 text-green-700 border-green-200';
+                            if (catchInfo.status === 'DEAD') {
+                                statusColor = 'bg-red-50 text-red-700 border-red-200';
+                            } else if (catchInfo.status === 'BOX') {
+                                statusColor = 'bg-yellow-50 text-yellow-700 border-yellow-200';
+                            } else if (catchInfo.status === 'FAILED') {
+                                statusColor = 'catch-card--failed bg-gray-100 text-gray-700 border-gray-300';
+                            }
+                            const id = Number(catchInfo.pokemon_id);
+                            const spriteId = Number.isSafeInteger(id) && id > 0 ? id : 0;
+                            const spriteUrl = `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${spriteId}.png`;
+                            const displayName = escapeHtml(pokemonDisplayName(catchInfo));
+                            const types = pokemonCatalogModule?.getPokemonTypeBadges(pokemonCatalog?.byId.get(id)) || [];
+                            const typeBadges = types.map(([label, color]) =>
+                                `<span class="rounded-full px-2 py-0.5 text-[11px] font-semibold text-white ${color}">${label}</span>`
+                            ).join('');
 
-                        const killerInfo = catchInfo.status === 'DEAD' && catchInfo.killed_by ?
-                            `<div class="text-xs text-red-700 font-semibold">Schuld: ${escapeHtml(catchInfo.killed_by)}</div>` : '';
+                            const killerInfo = catchInfo.status === 'DEAD' && catchInfo.killed_by ?
+                                `<div class="text-xs text-red-700 font-semibold">Schuld: ${escapeHtml(catchInfo.killed_by)}</div>` : '';
 
-                        const editBtnHtml = isFinished ? '' : `
-                            <button ${buttonData} class="tracker-control shrink-0 text-xs font-semibold text-gray-700 bg-white border border-gray-300 px-2 py-1 hover:bg-gray-100">Ändern</button>
-                        `;
+                            const editBtnHtml = !canEdit ? '' : `
+                                <button ${buttonData} class="tracker-control shrink-0 text-xs font-semibold text-gray-700 bg-white border border-gray-300 px-2 py-1 hover:bg-gray-100">Ändern</button>
+                            `;
 
-                        content = `
-                            <div class="catch-card flex items-center p-2.5 sm:p-3 rounded-lg border ${statusColor}">
-                                <img src="${spriteUrl}" alt="${displayName}" class="w-10 h-10 lg:w-12 lg:h-12 shrink-0 object-contain" loading="lazy" data-catch-sprite>
-                                <div class="min-w-0 flex-1">
-                                    <div class="catch-name break-words font-semibold text-sm">${displayName}</div>
-                                    ${typeBadges ? `<div class="my-0.5 flex flex-wrap gap-1">${typeBadges}</div>` : ''}
-                                    <div class="text-xs font-semibold">Status: ${escapeHtml(catchInfo.status)}</div>
-                                    ${killerInfo}
+                            return `
+                                <div class="catch-card flex items-center p-2.5 sm:p-3 rounded-lg border ${statusColor}">
+                                    <img src="${spriteUrl}" alt="${displayName}" class="w-10 h-10 lg:w-12 lg:h-12 shrink-0 object-contain" loading="lazy" data-catch-sprite>
+                                    <div class="min-w-0 flex-1">
+                                        <div class="catch-name break-words font-semibold text-sm">${displayName}</div>
+                                        ${typeBadges ? `<div class="my-0.5 flex flex-wrap gap-1">${typeBadges}</div>` : ''}
+                                        <div class="text-xs font-semibold">Status: ${escapeHtml(catchInfo.status)}</div>
+                                        ${killerInfo}
+                                    </div>
+                                    ${editBtnHtml}
                                 </div>
-                                ${editBtnHtml}
-                            </div>
-                        `;
+                            `;
+                        }).join('');
                     } else {
-                        const addBtnHtml = isFinished ? `
+                        const addBtnHtml = !canEdit || route.is_legacy ? `
                             <span class="text-xs text-gray-400 italic">Kein Eintrag</span>
                         ` : `
                             <button ${buttonData} class="tracker-control bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs px-3 py-2 font-semibold transition">+ Pokémon hinzufügen</button>
@@ -1689,7 +1870,7 @@
                     }
 
                     routeCard += `
-                        <div class="p-3 lg:p-4">
+                        <div class="space-y-1 p-3 lg:p-4">
                             <div class="text-xs font-semibold text-gray-600 uppercase tracking-wider mb-1.5">${player}</div>
                             ${content}
                         </div>
@@ -1700,12 +1881,13 @@
             }).join('');
         }
 
-        function openModal(route, player, existingCatch) {
-            if (savingCatch || !currentRunId || currentRunData?.is_finished) return;
+        function openModal(routeId, player, existingCatch) {
+            const route = routesSession?.byId.get(routeId);
+            if (savingCatch || !currentRunId || currentRunData?.is_finished || !route || (route.is_legacy && !existingCatch)) return;
 
             const originalName = existingCatch ? pokemonDisplayName(existingCatch) : '';
             catchEditor = { runId: currentRunId, route, player, existingCatch, originalName };
-            document.getElementById('modal-title').textContent = `${player} auf ${route}`;
+            document.getElementById('modal-title').textContent = `${player} auf ${route.name}`;
             document.getElementById('poke-name-input').value = originalName;
             document.getElementById('poke-status-input').value = existingCatch?.status ?? 'ALIVE';
             document.getElementById('pokemon-remove-btn').hidden = !existingCatch?.id;
@@ -1750,7 +1932,7 @@
                 showPokemonSaveError('Der ausgewählte Run hat sich geändert. Öffne den Fang erneut.');
                 return;
             }
-            if (!window.confirm(`${originalName} von ${player} auf ${route} unwiderruflich entfernen? Die Partner-Fänge bleiben erhalten.`)) return;
+            if (!window.confirm(`${originalName} von ${player} auf ${route.name} unwiderruflich entfernen? Die Partner-Fänge bleiben erhalten.`)) return;
 
             const buttons = ['pokemon-remove-btn', 'pokemon-save-btn', 'pokemon-cancel-btn']
                 .map(id => document.getElementById(id));
@@ -1799,7 +1981,8 @@
 
         async function savePokemonData() {
             if (savingCatch || !catchEditor || currentRunData?.is_finished) return;
-            const { runId, route, player, existingCatch, originalName } = catchEditor;
+            const editor = catchEditor;
+            const { runId, route, player, existingCatch, originalName } = editor;
             if (runId !== currentRunId) {
                 showPokemonSaveError('Der ausgewählte Run hat sich geändert. Öffne den Fang erneut.');
                 return;
@@ -1837,11 +2020,22 @@
             const button = document.getElementById('pokemon-save-btn');
             savingCatch = button.disabled = true;
             try {
+                const { data: run, error: runError } = await _supabase.from('runs').select('is_finished').eq('id', runId).single();
+                if (catchEditor !== editor || currentRunId !== runId) return;
+                if (runError || !run) {
+                    showPokemonSaveError('Der Run-Status konnte nicht geprüft werden.');
+                    return;
+                }
+                if (run.is_finished) {
+                    showPokemonSaveError('Abgeschlossene Runs sind schreibgeschützt.');
+                    return;
+                }
                 const { data: existingCatches, error: fetchError } = await _supabase
                     .from('catches')
                     .select('id, player_name')
                     .eq('run_id', runId)
-                    .eq('route_name', route);
+                    .eq('route_id', route.id);
+                if (catchEditor !== editor || currentRunId !== runId) return;
 
                 if (fetchError) {
                     showPokemonSaveError('Die Fänge dieser Route konnten nicht geladen werden.');
@@ -1849,10 +2043,13 @@
                 }
 
                 const existingMap = Object.create(null);
-                if (existingCatches) {
-                    existingCatches.forEach(c => {
-                        existingMap[c.player_name] = c.id;
-                    });
+                for (const catchInfo of existingCatches || []) {
+                    if (!PLAYERS.includes(catchInfo.player_name)) continue;
+                    if (existingMap[catchInfo.player_name] !== undefined) {
+                        showPokemonSaveError('Für diese Route gibt es doppelte Fänge. Der Fang wurde nicht geändert.');
+                        return;
+                    }
+                    existingMap[catchInfo.player_name] = catchInfo.id;
                 }
 
                 const activeCatchId = existingMap[player];
@@ -1863,8 +2060,10 @@
 
                 const query = _supabase.from('catches');
                 const { data, error } = activeCatchId === undefined
-                    ? await query.insert([{ run_id: runId, route_name: route, player_name: player, ...changes }])
-                    : await query.update(changes).eq('id', activeCatchId).select('id').single();
+                    ? await query.insert([{
+                        run_id: runId, route_id: route.id, route_name: route.legacy_key, player_name: player, ...changes
+                    }])
+                    : await query.update(changes).eq('id', activeCatchId).eq('run_id', runId).select('id').single();
                 if (activeCatchId !== undefined &&
                     (error?.code === 'PGRST116' || (!error && data?.id !== activeCatchId))) {
                     showPokemonSaveError('Der aktualisierte Fang konnte nicht bestätigt werden. Lade die Route neu und versuche es erneut.');
@@ -1888,12 +2087,12 @@
                     }
                 }
 
-                closeModal();
+                if (catchEditor === editor) closeModal();
                 if (partnerFailed) alert('Der Fang wurde gespeichert, aber mindestens ein Partnerstatus konnte nicht aktualisiert werden.');
-                await loadRoutesAndCatches();
+                if (currentRunId === runId) await loadRoutesAndCatches();
 
-            } catch (err) {
-                showPokemonSaveError('Der Fang konnte nicht gespeichert werden.');
+            } catch {
+                if (catchEditor === editor) showPokemonSaveError('Der Fang konnte nicht gespeichert werden.');
             } finally {
                 savingCatch = button.disabled = false;
             }

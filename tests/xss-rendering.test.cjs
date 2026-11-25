@@ -121,14 +121,17 @@ test('feedback fields render as text and DOM click preserves the exact editable 
 
 test('route and team output escape quoted names and resolve sprites using only numeric IDs', async () => {
     const app = setup({});
-    app.context.fixture = { [probe]: { Higa: { pokemon_name: probe, pokemon_id: probe, level: probe, status: 'ALIVE' } } };
+    app.context.fixture = { [probe]: { Higa: [{ pokemon_name: probe, pokemon_id: probe, level: probe, status: 'ALIVE' }] } };
     app.context.routeProbe = probe;
-    app.run('KANTO_ROUTES.push(routeProbe); renderRoutes(fixture)');
+    app.run(`routesSession = { rows: [{ id: routeProbe, name: routeProbe }], byId: new Map([[routeProbe, {}]]) };
+        renderRoutes(fixture); renderRouteManager()`);
     const tracker = app.element('routes-container').innerHTML;
     assertTextOnly(tracker);
     assert.ok(tracker.includes('data-catch-route="' + escaped + '"'));
     assert.ok(tracker.includes('alt="' + escaped + '"'));
     assert.match(tracker, /\/sprites\/pokemon\/0\.png/);
+    assertTextOnly(app.element('route-editor-list').innerHTML);
+    assert.ok(app.element('route-editor-list').innerHTML.includes('value="' + escaped + '"'));
 
     const { renderTeamGrid } = await import('../lib/soul-link-team.mjs');
     const markup = renderTeamGrid([{ slot: 1, route_name: probe, pokemon: [

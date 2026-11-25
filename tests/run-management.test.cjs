@@ -22,6 +22,7 @@ function setup(initialRuns = []) {
             elements.set(id, {
                 value: '',
                 appendChild() {},
+                replaceChildren() {},
                 classList: {
                     add: name => classes.add(name),
                     remove: name => classes.delete(name),

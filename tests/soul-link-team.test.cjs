@@ -86,6 +86,48 @@ test('a delayed read cannot overwrite a newer confirmed team change', async () =
     assert.equal(visible.data.slots[0].route_name, 'Route 2');
 });
 
+test('team controls display renamed routes and pass their original keys to the RPC', async () => {
+    const { mountSoulLinkTeam } = await teamModule;
+    const elements = new Map();
+    const getElementById = id => {
+        if (!elements.has(id)) {
+            const events = new Map();
+            elements.set(id, {
+                addEventListener: (event, callback) => events.set(event, callback),
+                dispatch: (event, details) => events.get(event)(details),
+                showModal() { this.open = true; },
+                close() { this.open = false; }
+            });
+        }
+        return elements.get(id);
+    };
+    const state = snapshot('Alter Schlüssel');
+    state.candidates = [{ route_name: 'Zweiter Schlüssel', pokemon: [] }];
+    const requests = [];
+    const labels = new Map([['Alter Schlüssel', 'Neuer Anzeigename'], ['Zweiter Schlüssel', 'Casino-Ort']]);
+    const team = mountSoulLinkTeam({
+        document: { getElementById },
+        request: async payload => { requests.push(payload); return state; },
+        displayName: () => '', getBadges: () => [], escape: String,
+        routeLabel: key => labels.get(key) ?? key
+    });
+    await team.select('run');
+    getElementById('team-manage').dispatch('click');
+    const controls = getElementById('team-controls');
+    assert.match(controls.innerHTML, /Slot 1 · Neuer Anzeigename/);
+    assert.match(controls.innerHTML, /value="Zweiter Schlüssel">Casino-Ort/);
+    assert.match(getElementById('team-grid').innerHTML, /aria-label="Slot 1 · Neuer Anzeigename"/);
+    getElementById('team-candidate').value = 'Zweiter Schlüssel';
+    controls.dispatch('click', { target: { closest: () => ({ dataset: { teamAction: 'add' } }) } });
+    await Promise.resolve();
+    controls.dispatch('click', { target: { closest: () => ({ dataset: { teamAction: 'remove', slot: '1' } }) } });
+    assert.deepEqual(requests, [
+        { p_run_id: 'run', p_action: 'read' },
+        { p_run_id: 'run', p_action: 'add', p_route: 'Zweiter Schlüssel' },
+        { p_run_id: 'run', p_action: 'remove', p_route: null, p_slot: 1, p_expected_route: 'Alter Schlüssel' }
+    ]);
+});
+
 test('the responsive grid holds six aligned rows for Higa, Eike and Ruffy, with catalog labels and no stats', async () => {
     const { renderTeamGrid } = await teamModule;
     const { getPokemonDisplayName, getPokemonTypeBadges } = await import('../lib/pokemon-catalog-display.mjs');
